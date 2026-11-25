@@ -135,6 +135,7 @@ class Filtro(BaseModel):
     chave_local: str
     chave_remota: str
     filtros: dict[str, Any] = Field(default_factory=dict)
+    trazer: dict[str, str] = Field(default_factory=dict)   # atributo -> coluna da tabela relacionada
 
 
 class Predicado(BaseModel):
@@ -153,6 +154,7 @@ class Estado(BaseModel):
     predicado: Predicado | None = None        # None => estado virtual (ex.: inexistente)
     propagacao_max_s: float = 0.0
     sinonimos: list[str] = Field(default_factory=list)
+    somente_garimpo: bool = False             # estado que não tem receita: só pode ser obtido por garimpo
 
 
 class PassoReceita(BaseModel):
@@ -161,12 +163,14 @@ class PassoReceita(BaseModel):
     campos_gerados: list[str] = Field(default_factory=list)
     parametros: dict[str, str] = Field(default_factory=dict)  # nome -> "papel.chave" (ex.: "id_contrato": "contrato.id")
     devolve: str | None = None                # chave do registro criado/afetado, ex.: "id_garantia"
+    registra: dict[str, str] = Field(default_factory=dict)  # atributo da instância -> "papel.chave"
 
 
 class Receita(BaseModel):
     id: str
     cluster: str
     entidade: str
+    operacao: str | None = None               # operação de negócio que esta receita representa
     origem: str
     destino: str
     requer: dict[str, str] = Field(default_factory=dict)  # papel -> estado exigido de outra entidade

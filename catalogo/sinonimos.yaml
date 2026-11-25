@@ -1,0 +1,8 @@
+# Normalização de nomes entre COBOL, Java, banco, OpenAPI e Domain Pack.
+prefixos: ["GAR-", "CTR-"]
+sinonimos:
+  valor_avaliacao: [vlr_avaliacao]
+  data_avaliacao: [dt_avaliacao]
+  matricula_imovel: [matricula]
+  cpf_cnpj_proprietario: [cpf_cnpj]
+  motivo_bloqueio: [motivo_bloq]

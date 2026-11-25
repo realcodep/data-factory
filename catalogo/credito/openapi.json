@@ -1,0 +1,513 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "API demo — Garantias (fictícia)",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/contratos": {
+      "post": {
+        "tags": [
+          "credito"
+        ],
+        "summary": "Criar Contrato",
+        "operationId": "criar_contrato_v1_contratos_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NovoContrato"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/contratos/{cid}": {
+      "get": {
+        "tags": [
+          "credito"
+        ],
+        "summary": "Ler Contrato",
+        "operationId": "ler_contrato_v1_contratos__cid__get",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/garantias/imobiliarias": {
+      "post": {
+        "tags": [
+          "garantias"
+        ],
+        "summary": "Incluir",
+        "operationId": "incluir_v1_garantias_imobiliarias_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NovaGarantia"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/garantias/{gid}": {
+      "get": {
+        "tags": [
+          "garantias"
+        ],
+        "summary": "Ler",
+        "operationId": "ler_v1_garantias__gid__get",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "garantias"
+        ],
+        "summary": "Excluir",
+        "operationId": "excluir_v1_garantias__gid__delete",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/garantias/{gid}/associacoes": {
+      "post": {
+        "tags": [
+          "garantias"
+        ],
+        "summary": "Associar",
+        "operationId": "associar_v1_garantias__gid__associacoes_post",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Associacao"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/garantias/{gid}/bloqueios": {
+      "post": {
+        "tags": [
+          "garantias"
+        ],
+        "summary": "Bloquear",
+        "operationId": "bloquear_v1_garantias__gid__bloqueios_post",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Bloqueio"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/garantias/{gid}/desassociacoes": {
+      "post": {
+        "tags": [
+          "garantias"
+        ],
+        "summary": "Desassociar",
+        "operationId": "desassociar_v1_garantias__gid__desassociacoes_post",
+        "parameters": [
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Gid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Associacao"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Associacao": {
+        "properties": {
+          "id_contrato": {
+            "type": "integer",
+            "title": "Id Contrato"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_contrato"
+        ],
+        "title": "Associacao"
+      },
+      "Bloqueio": {
+        "properties": {
+          "motivo_bloqueio": {
+            "type": "string",
+            "title": "Motivo Bloqueio"
+          }
+        },
+        "type": "object",
+        "required": [
+          "motivo_bloqueio"
+        ],
+        "title": "Bloqueio"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "NovaGarantia": {
+        "properties": {
+          "matricula_imovel": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Matricula Imovel"
+          },
+          "valor_avaliacao": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 1000.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,13}|(?=[\\d.]{1,16}0*$)\\d{0,13}\\.\\d{0,2}0*$)"
+              }
+            ],
+            "title": "Valor Avaliacao"
+          },
+          "data_avaliacao": {
+            "type": "string",
+            "format": "date",
+            "title": "Data Avaliacao"
+          },
+          "cpf_cnpj_proprietario": {
+            "type": "string",
+            "maxLength": 14,
+            "title": "Cpf Cnpj Proprietario"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matricula_imovel",
+          "valor_avaliacao",
+          "data_avaliacao",
+          "cpf_cnpj_proprietario"
+        ],
+        "title": "NovaGarantia"
+      },
+      "NovoContrato": {
+        "properties": {
+          "numero": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Numero"
+          },
+          "cpf_cnpj_cliente": {
+            "type": "string",
+            "maxLength": 14,
+            "title": "Cpf Cnpj Cliente"
+          },
+          "valor": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,13}|(?=[\\d.]{1,16}0*$)\\d{0,13}\\.\\d{0,2}0*$)"
+              }
+            ],
+            "title": "Valor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "numero",
+          "cpf_cnpj_cliente",
+          "valor"
+        ],
+        "title": "NovoContrato"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+interfaces:
+  - id: garantias:incluir
+    metodo: POST
+    caminho: /v1/garantias/imobiliarias
+    status_sucesso: [201]
+    campos: [{campo: matricula_imovel}, {campo: valor_avaliacao}, {campo: data_avaliacao}, {campo: cpf_cnpj_proprietario}]
+    tela:
+      rota: /telas/garantias/inclusao
+      botao: "#btn-confirmar"
+      resultado: "#resultado"
+      campos:
+        - {campo: matricula_imovel, seletor: "#campo-matricula_imovel"}
+        - {campo: valor_avaliacao, seletor: "#campo-valor_avaliacao"}
+        - {campo: data_avaliacao, seletor: "#campo-data_avaliacao"}
+        - {campo: cpf_cnpj_proprietario, seletor: "#campo-cpf_cnpj_proprietario"}
+  - id: garantias:associar
+    metodo: POST
+    caminho: /v1/garantias/{id_garantia}/associacoes
+    status_sucesso: [201]
+    campos: [{campo: id_contrato}]
+  - id: garantias:bloquear
+    metodo: POST
+    caminho: /v1/garantias/{id_garantia}/bloqueios
+    status_sucesso: [202]
+    campos: [{campo: motivo_bloqueio}]
+    tela:
+      rota: /telas/garantias/bloqueio
+      botao: "#btn-confirmar"
+      resultado: "#resultado"
+      campos:
+        - {campo: id_garantia, seletor: "#campo-id_garantia"}
+        - {campo: motivo_bloqueio, seletor: "#campo-motivo_bloqueio"}
+  - id: garantias:desassociar
+    metodo: POST
+    caminho: /v1/garantias/{id_garantia}/desassociacoes
+    status_sucesso: [200]
+    campos: [{campo: id_contrato}]
+  - id: garantias:excluir
+    metodo: DELETE
+    caminho: /v1/garantias/{id_garantia}
+    status_sucesso: [200]
+  - id: garantias:consultar
+    metodo: GET
+    caminho: /v1/garantias/{id_garantia}
+    status_sucesso: [200]

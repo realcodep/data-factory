@@ -1,0 +1,25 @@
+# GERADO pelo build do catálogo. Conflitos NÃO são resolvidos automaticamente.
+conflitos:
+- campo: motivo_bloqueio
+  atributo: dominio
+  tipo: funcional_x_tecnico
+  tecnico:
+  - JUD
+  - ADM
+  - FRA
+  funcional:
+  - JUD
+  - ADM
+  evidencias_tecnicas:
+  - demo/fontes/CPGAR10.cpy:16
+  - demo/fontes/CPGAR10.cpy:17
+  - demo/fontes/CPGAR10.cpy:18
+  - demo/fontes/CPGAR10.cpy:19
+  - demo/fontes/BloqueioRequest.java:11
+  - demo/fontes/BloqueioRequest.java:10
+  - garantia.motivo_bloqueio
+  - garantia.ck_garantia_motivo
+  - catalogo/garantias/openapi.json#/components/schemas/Bloqueio/motivo_bloqueio
+  evidencias_funcionais:
+  - garantias-imobiliario@1.0.3-demo#FN-GAR-002
+  entidade: garantias:garantia_imobiliaria

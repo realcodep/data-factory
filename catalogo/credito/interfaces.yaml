@@ -1,0 +1,6 @@
+interfaces:
+  - id: credito:criar_contrato
+    metodo: POST
+    caminho: /v1/contratos
+    status_sucesso: [201]
+    campos: [{campo: numero}, {campo: cpf_cnpj_cliente}, {campo: valor}]

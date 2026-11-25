@@ -1,0 +1,15 @@
+estados:
+  - id: credito:contrato.inexistente
+    entidade: credito:contrato
+    descricao: Contrato ainda não existe (estado virtual de partida)
+  - id: credito:contrato.ativo
+    entidade: credito:contrato
+    descricao: Contrato vigente, apto a receber garantias
+    sinonimos: [contrato ativo, contrato vigente, contrato em vigor]
+    predicado: {tabela: contrato, chave: id, filtros: {situacao: A}}
+  - id: credito:contrato.liquidado
+    entidade: credito:contrato
+    descricao: Contrato liquidado
+    sinonimos: [contrato liquidado, contrato quitado]
+    somente_garimpo: true
+    predicado: {tabela: contrato, chave: id, filtros: {situacao: L}}

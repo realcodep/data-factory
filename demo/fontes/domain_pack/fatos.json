@@ -3,28 +3,120 @@
   "versao": "1.0.3-demo",
   "aviso": "Domain Pack fictício para o ambiente demo. Não representa regras reais.",
   "fatos": [
-    {"id": "FN-GAR-001", "tipo": "funcional", "entidade": "garantias:garantia_imobiliaria", "campo": "valor_avaliacao",
-     "atributo": "minimo", "valor": 1000.0,
-     "texto": "O valor de avaliação mínimo aceito para garantia imobiliária é R$ 1.000,00.",
-     "evidencia": {"arquivo": "normativos/NG-IMO-01.md", "trecho": "secao 3.2", "versao": "2025-10"}},
-    {"id": "FN-GAR-002", "tipo": "funcional", "entidade": "garantias:garantia_imobiliaria", "campo": "motivo_bloqueio",
-     "atributo": "dominio", "valor": ["JUD", "ADM"],
-     "texto": "O bloqueio de garantia só pode ocorrer por determinação judicial (JUD) ou administrativa (ADM).",
-     "evidencia": {"arquivo": "normativos/NG-IMO-01.md", "trecho": "secao 5.1", "versao": "2025-10"}},
-    {"id": "FN-GAR-003", "tipo": "regra_negocio", "entidade": "garantias:garantia_imobiliaria", "operacao": "bloqueio",
-     "texto": "Somente garantia ativa e associada a contrato pode ser bloqueada; garantia já bloqueada não é bloqueada novamente.",
-     "evidencia": {"arquivo": "normativos/NG-IMO-01.md", "trecho": "secao 5.2", "versao": "2025-10"}},
-    {"id": "FN-GAR-004", "tipo": "regra_negocio", "entidade": "garantias:garantia_imobiliaria", "operacao": "exclusao",
-     "texto": "Garantia associada a contrato vigente não pode ser excluída.",
-     "evidencia": {"arquivo": "normativos/NG-IMO-01.md", "trecho": "secao 6.1", "versao": "2025-10"}},
-    {"id": "FN-GAR-005", "tipo": "regra_negocio", "entidade": "garantias:garantia_imobiliaria", "operacao": "inclusao",
-     "texto": "Inclusão com valor de avaliação abaixo do mínimo deve ser rejeitada.",
-     "evidencia": {"arquivo": "normativos/NG-IMO-01.md", "trecho": "secao 3.2", "versao": "2025-10"}},
-    {"id": "FN-GAR-006", "tipo": "regra_negocio", "entidade": "garantias:garantia_imobiliaria", "operacao": "associacao",
-     "texto": "A associação exige contrato ativo; após associada, a garantia passa a constar como vinculada ao contrato.",
-     "evidencia": {"arquivo": "normativos/NG-IMO-01.md", "trecho": "secao 4.1", "versao": "2025-10"}},
-    {"id": "FN-GAR-007", "tipo": "regra_negocio", "entidade": "garantias:garantia_imobiliaria", "operacao": "desassociacao",
-     "texto": "Garantia bloqueada não pode ser desassociada do contrato.",
-     "evidencia": {"arquivo": "normativos/NG-IMO-01.md", "trecho": "secao 4.3", "versao": "2025-10"}}
+    {
+      "id": "FN-GAR-001",
+      "tipo": "funcional",
+      "entidade": "garantias:garantia_imobiliaria",
+      "campo": "valor_avaliacao",
+      "atributo": "minimo",
+      "valor": 1000.0,
+      "texto": "O valor de avaliação mínimo aceito para garantia imobiliária é R$ 1.000,00.",
+      "evidencia": {
+        "arquivo": "normativos/NG-IMO-01.md",
+        "trecho": "secao 3.2",
+        "versao": "2025-10"
+      }
+    },
+    {
+      "id": "FN-GAR-002",
+      "tipo": "funcional",
+      "entidade": "garantias:garantia_imobiliaria",
+      "campo": "motivo_bloqueio",
+      "atributo": "dominio",
+      "valor": [
+        "JUD",
+        "ADM"
+      ],
+      "texto": "O bloqueio de garantia só pode ocorrer por determinação judicial (JUD) ou administrativa (ADM).",
+      "evidencia": {
+        "arquivo": "normativos/NG-IMO-01.md",
+        "trecho": "secao 5.1",
+        "versao": "2025-10"
+      }
+    },
+    {
+      "id": "FN-GAR-003",
+      "tipo": "regra_negocio",
+      "entidade": "garantias:garantia_imobiliaria",
+      "operacao": "bloqueio",
+      "texto": "Somente garantia ativa e associada a contrato pode ser bloqueada; garantia já bloqueada não é bloqueada novamente.",
+      "evidencia": {
+        "arquivo": "normativos/NG-IMO-01.md",
+        "trecho": "secao 5.2",
+        "versao": "2025-10"
+      }
+    },
+    {
+      "id": "FN-GAR-004",
+      "tipo": "regra_negocio",
+      "entidade": "garantias:garantia_imobiliaria",
+      "operacao": "exclusao",
+      "texto": "Garantia associada a contrato vigente não pode ser excluída.",
+      "evidencia": {
+        "arquivo": "normativos/NG-IMO-01.md",
+        "trecho": "secao 6.1",
+        "versao": "2025-10"
+      }
+    },
+    {
+      "id": "FN-GAR-005",
+      "tipo": "regra_negocio",
+      "entidade": "garantias:garantia_imobiliaria",
+      "operacao": "inclusao",
+      "texto": "Inclusão com valor de avaliação abaixo do mínimo deve ser rejeitada.",
+      "evidencia": {
+        "arquivo": "normativos/NG-IMO-01.md",
+        "trecho": "secao 3.2",
+        "versao": "2025-10"
+      }
+    },
+    {
+      "id": "FN-GAR-006",
+      "tipo": "regra_negocio",
+      "entidade": "garantias:garantia_imobiliaria",
+      "operacao": "associacao",
+      "texto": "A associação exige contrato ativo; após associada, a garantia passa a constar como vinculada ao contrato.",
+      "evidencia": {
+        "arquivo": "normativos/NG-IMO-01.md",
+        "trecho": "secao 4.1",
+        "versao": "2025-10"
+      }
+    },
+    {
+      "id": "FN-GAR-007",
+      "tipo": "regra_negocio",
+      "entidade": "garantias:garantia_imobiliaria",
+      "operacao": "desassociacao",
+      "texto": "Garantia bloqueada não pode ser desassociada do contrato.",
+      "evidencia": {
+        "arquivo": "normativos/NG-IMO-01.md",
+        "trecho": "secao 4.3",
+        "versao": "2025-10"
+      }
+    },
+    {
+      "id": "FN-GAR-008",
+      "tipo": "regra_negocio",
+      "entidade": "garantias:garantia_imobiliaria",
+      "operacao": "inclusao",
+      "texto": "Inclusão com dados válidos cria a garantia imobiliária ativa e sem vínculo com contrato.",
+      "evidencia": {
+        "arquivo": "normativos/NG-IMO-01.md",
+        "trecho": "secao 3.1",
+        "versao": "2025-10"
+      }
+    },
+    {
+      "id": "FN-GAR-009",
+      "tipo": "regra_negocio",
+      "entidade": "garantias:garantia_imobiliaria",
+      "operacao": "exclusao",
+      "texto": "Garantia ativa sem vínculo pode ser excluída e passa a constar como excluída.",
+      "evidencia": {
+        "arquivo": "normativos/NG-IMO-01.md",
+        "trecho": "secao 6.2",
+        "versao": "2025-10"
+      }
+    }
   ]
 }

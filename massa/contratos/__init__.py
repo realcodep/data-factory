@@ -53,7 +53,9 @@ class VariacaoCampo(BaseModel):
 
 class ResultadoEsperado(BaseModel):
     descricao: str
-    verificacao: dict[str, Any]      # ex.: {"http_status": 422} ou {"estado": "garantias:...bloqueada", "papel": "garantia"}
+    # {"http_status": 201} | {"aceito": true} | {"rejeitado": true}
+    # | {"estado": "<estado>", "papel": "alvo"} | {"estado_mantido": "<estado>", "papel": "alvo"}
+    verificacao: dict[str, Any]
     origem: OrigemExpectativa
     fonte: str | None = None         # id de fato funcional, arquivo:linha ou id de decisão
 
@@ -74,10 +76,12 @@ class EspecificacaoCenario(BaseModel):
 
     @model_validator(mode="after")
     def _coerencia(self) -> "EspecificacaoCenario":
-        if self.tipo in ("negativo", "limite") and not self.variacoes:
-            raise ValueError("cenário negativo/limite exige ao menos uma variação")
-        if self.tipo == "negativo" and not any(v.regra in VARIACOES_INVALIDAS for v in self.variacoes):
-            raise ValueError("cenário negativo exige variação inválida")
+        if self.tipo == "limite" and not self.variacoes:
+            raise ValueError("cenário de limite exige ao menos uma variação")
+        # negativo: ou viola um campo (variação inválida) ou viola uma regra de estado (pré-condição explícita)
+        if self.tipo == "negativo" and not any(v.regra in VARIACOES_INVALIDAS for v in self.variacoes) \
+                and not self.precondicoes:
+            raise ValueError("cenário negativo exige variação inválida ou pré-condição de estado explícita")
         return self
 
     @property
@@ -213,7 +217,8 @@ class Decisao(BaseModel):
 class Pendencia(BaseModel):
     id: str
     tipo: Literal["termo_desconhecido", "conflito_regra", "oraculo_sem_fonte", "receita_nao_aprovada",
-                  "sem_caminho", "aprovacao", "lacuna_catalogo", "falha_caminho", "falha_politica"]
+                  "sem_caminho", "aprovacao", "lacuna_catalogo", "especificacao_incoerente",
+                  "falha_caminho", "falha_politica"]
     assinatura: str
     cenarios: list[str] = Field(default_factory=list)
     duvida: str

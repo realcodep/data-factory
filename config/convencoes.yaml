@@ -1,0 +1,17 @@
+# Convenções do cluster: degrau 2 da escada de autonomia (resolvidas sem IA).
+convencoes:
+  - id: CONV-01
+    tipo: oraculo_sem_fonte
+    assinatura_prefixo: "oraculo:"
+    quando: {tipo_cenario: negativo}
+    escolha: {verificacao: {rejeitado: true}, descricao: "Operação rejeitada (4xx)"}
+    justificativa: "Cenário negativo sem expectativa explícita espera rejeição da operação (HTTP 4xx)."
+  - id: CONV-02
+    tipo: receita_nao_aprovada
+    escolha: aguardar_aprovacao
+    justificativa: "Receita não aprovada nunca é executada sem aprovação; vira parte do pedido de aprovação única."
+padroes:
+  quantidade: 1
+  pessoa: fisica
+  prazo_reserva_s: 3600
+precedente_minimo_aplicacoes: 2

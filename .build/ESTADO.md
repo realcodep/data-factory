@@ -1,6 +1,6 @@
 # Estado da construção
 
-**Etapa atual:** 4 — Planejamento, Guardião e MCP
+**Etapa atual:** 5 — Agentes, hooks e operação
 
 ## Etapa 1 — Fundação: CONCLUÍDA
 - [x] 1.1 Estrutura do projeto, pyproject, Makefile
@@ -27,8 +27,17 @@
 - [x] 3.6 Executor com classificação de falhas e nova tentativa; verificador com espera de propagação
 - [x] 3.7 Época do ambiente invalida reservas após recarga
 
+## Etapa 4 — Planejamento, Guardião e MCP: CONCLUÍDA
+- [x] 4.1 Planejador de suíte (compartilhável única, consumível por cenário, ordenação, grupos paralelizáveis)
+- [x] 4.2 Fases F0–F7 geradas só quando necessárias (F3 esvaziada se garimpo cobre tudo)
+- [x] 4.3 Plano a seco: só leituras; levanta pendências (termos, conflitos, oráculo, caminhos, política)
+- [x] 4.4 Resolvedor determinístico: fato, convenção (config/convencoes.yaml), precedente
+- [x] 4.5 Guardião: política única, avaliação do plano, aprovação única, falha fechada, mascaramento
+- [x] 4.6 Condutor: checkpoint por passo, classificação de falhas, retomada (inclusive queda no meio de receita)
+- [x] 4.7 Servidor MCP (SDK 2.x, compatível com 1.x) com 15 ferramentas, sem SQL livre
+
 ## Bloqueios
 (nenhum)
 
 ## Próximos passos
-Etapa 4: planejador de suíte, plano a seco, resolvedor de decisões, Guardião, condutor, servidor MCP.
+Etapa 5: instructions, QA Lead, investigador, skills, hooks, pool/canários, cenário executável, métricas, aceitação.

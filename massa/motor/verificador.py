@@ -18,6 +18,10 @@ def verificar(ctx: Contexto, spec: EspecificacaoCenario, resposta: dict | None, 
         if "http_status" in v:
             obtido = (resposta or {}).get("status")
             ok = obtido == v["http_status"]
+        elif "aceito" in v or "rejeitado" in v:
+            obtido = (resposta or {}).get("status")
+            aceito = obtido is not None and 200 <= obtido < 300
+            ok = aceito if v.get("aceito") else (obtido is not None and 400 <= obtido < 500)
         elif "estado" in v:
             chave = papeis[v.get("papel", "alvo")]["chave"]
             ok = aguardar_estado(ctx, v["estado"], chave, espera=espera)

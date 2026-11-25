@@ -80,12 +80,14 @@ class RegistroEventos:
     # ───────── projeções ─────────
     def checkpoint(self, plano_id: str) -> dict:
         """Reconstrói o estado de execução de um plano a partir dos eventos."""
-        estado: dict[str, Any] = {"plano": None, "fases_concluidas": [], "passos_concluidos": {}, "registros": {},
+        estado: dict[str, Any] = {"plano": None, "suite": None, "fases_concluidas": [], "passos_concluidos": {}, "registros": {},
                                   "reservas": {}, "decisoes": {}, "aprovado": False, "concluido": False, "falhas": []}
         for e in self.listar(plano_id):
             d, t = e["dados"], e["tipo"]
-            if t == "plano_criado":
+            if t in ("plano_criado", "plano_simulado"):
                 estado["plano"] = d["plano"]
+                if d.get("suite"):
+                    estado["suite"] = d["suite"]
             elif t == "plano_replanejado":
                 estado["plano"] = d["plano"]
                 validas = set(d.get("fases_validas", []))

@@ -1,0 +1,9 @@
+# Ambiente alvo do motor. A construção roda SOMENTE contra o ambiente DEMO fictício.
+nome: DEMO
+banco_url: sqlite:///demo/demo.db
+api_base: http://127.0.0.1:8765
+estado_motor: estado/motor.db      # registro de eventos + tabela de reservas
+data_base: "2026-01-01"            # datas geradas são relativas a esta data (reprodutibilidade)
+navegador: /usr/bin/google-chrome  # usado pelo Playwright nos roteiros de tela
+# Adaptadores para ambientes reais: desligados por padrão (ver README).
+adaptadores_reais: false

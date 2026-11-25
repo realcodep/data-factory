@@ -63,6 +63,12 @@ def criar_servidor(servico: Servico) -> FastMCP:
                                          confianca, reversivel)
 
     @mcp.tool()
+    def registrar_interpretacao(plano_id: str, cenarios: list[str], duvida: str, escolha: Any, degrau: str,
+                                justificativa: str, confianca: float = 0.7) -> dict:
+        """Registra decisões de interpretação (ex.: duas_leituras) tomadas antes do plano."""
+        return servico.registrar_interpretacao(plano_id, cenarios, duvida, escolha, degrau, justificativa, confianca)
+
+    @mcp.tool()
     def registrar_perguntas(plano_id: str, perguntas: list[dict]) -> dict:
         """Registra as perguntas feitas ao humano (todas juntas), para métricas e auditoria."""
         return servico.registrar_perguntas(plano_id, perguntas)

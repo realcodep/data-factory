@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "massa": {"command": "python", "args": ["-m", "massa.mcp_server"]}
+  }
+}

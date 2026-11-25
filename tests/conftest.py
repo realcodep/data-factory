@@ -50,7 +50,8 @@ def ctx(db_url, eventos, api, tmp_path):
     from massa.motor.contexto import Contexto
     return Contexto(catalogo=Catalogo.carregar(), eventos=eventos,
                     engine=create_engine(db_url, connect_args={"check_same_thread": False}),
-                    http=api, espera_base_s=0.01, saida=tmp_path / "saida", navegador="/usr/bin/google-chrome")
+                    http=api, espera_base_s=0.01, saida=tmp_path / "saida",
+                    navegador="/usr/bin/google-chrome" if Path("/usr/bin/google-chrome").exists() else None)
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 # Estado da construção
 
-**Etapa atual:** 5 — Agentes, hooks e operação
+**Etapa atual:** construção concluída (5 de 5)
 
 ## Etapa 1 — Fundação: CONCLUÍDA
 - [x] 1.1 Estrutura do projeto, pyproject, Makefile
@@ -36,8 +36,19 @@
 - [x] 4.6 Condutor: checkpoint por passo, classificação de falhas, retomada (inclusive queda no meio de receita)
 - [x] 4.7 Servidor MCP (SDK 2.x, compatível com 1.x) com 15 ferramentas, sem SQL livre
 
+## Etapa 5 — Agentes, hooks e operação: CONCLUÍDA
+- [x] 5.1 `.github/copilot-instructions.md`
+- [x] 5.2 Agente QA Lead (`qa-lead.agent.md`) com fluxo, escada e limites
+- [x] 5.3 Subagente investigador (`investigador-catalogo.agent.md`) — só propostas
+- [x] 5.4 Cinco skills genéricas
+- [x] 5.5 Hooks (7 eventos) inativos por padrão, com testes unitários dos scripts
+- [x] 5.6 Pool (priorizado por garimpo vazio) e canários (receita quebrada detectada e evitada)
+- [x] 5.7 Cenário executável (`massa rodar`) + workflow de CI
+- [x] 5.8 Métricas sobre o registro de eventos
+- [x] 5.9 Suíte de aceitação: CI com QA Lead simulado (1 pergunta) + rodada manual ao vivo registrada
+
 ## Bloqueios
 (nenhum)
 
 ## Próximos passos
-Etapa 5: instructions, QA Lead, investigador, skills, hooks, pool/canários, cenário executável, métricas, aceitação.
+Nenhum. Ver `.build/RELATORIO-FINAL.md`.

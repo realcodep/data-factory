@@ -1,0 +1,67 @@
+# Suíte de aceitação — garantia imobiliária (dados fictícios).
+# 5 estruturados (uma por operação), 1 texto livre, 1 ambíguo (duas leituras), 1 que EXIGE pergunta.
+id: ACEITE-IMOBILIARIO
+historia: "Comercialização de garantia imobiliária — POC"
+cenarios:
+  - id: CT-01
+    especificacao:
+      titulo: Incluir garantia imobiliária válida
+      operacao: inclusao
+      entidade: garantias:garantia_imobiliaria
+      tipo: positivo
+      resultado_esperado:
+        - {descricao: "Garantia criada ativa e sem vínculo", origem: funcional, fonte: FN-GAR-008,
+           verificacao: {estado: "garantias:garantia_imobiliaria.ativa_sem_vinculo", papel: alvo}}
+    esperado: ok
+  - id: CT-02
+    especificacao:
+      titulo: Associar garantia a contrato ativo
+      operacao: associacao
+      entidade: garantias:garantia_imobiliaria
+      tipo: positivo
+      resultado_esperado:
+        - {descricao: "Garantia associada", origem: funcional, fonte: FN-GAR-006,
+           verificacao: {estado: "garantias:garantia_imobiliaria.associada", papel: alvo}}
+    esperado: ok
+  - id: CT-03
+    especificacao:
+      titulo: Bloquear garantia associada por determinação judicial
+      operacao: bloqueio
+      entidade: garantias:garantia_imobiliaria
+      tipo: positivo
+      entradas: {motivo_bloqueio: JUD}
+      resultado_esperado:
+        - {descricao: "Garantia bloqueada", origem: funcional, fonte: FN-GAR-003,
+           verificacao: {estado: "garantias:garantia_imobiliaria.bloqueada", papel: alvo}}
+    esperado: ok
+  - id: CT-04
+    especificacao:
+      titulo: Não desassociar garantia bloqueada
+      operacao: desassociacao
+      entidade: garantias:garantia_imobiliaria
+      tipo: negativo
+      precondicoes: [{estado: "garantias:garantia_imobiliaria.bloqueada", uso: consumivel, papel: alvo}]
+      resultado_esperado:
+        - {descricao: "Desassociação rejeitada", origem: funcional, fonte: FN-GAR-007, verificacao: {rejeitado: true}}
+        - {descricao: "Garantia continua bloqueada", origem: funcional, fonte: FN-GAR-007,
+           verificacao: {estado_mantido: "garantias:garantia_imobiliaria.bloqueada", papel: alvo}}
+    esperado: ok
+  - id: CT-05
+    especificacao:
+      titulo: Excluir garantia sem vínculo
+      operacao: exclusao
+      entidade: garantias:garantia_imobiliaria
+      tipo: positivo
+      resultado_esperado:
+        - {descricao: "Garantia excluída", origem: funcional, fonte: FN-GAR-009,
+           verificacao: {estado: "garantias:garantia_imobiliaria.excluida", papel: alvo}}
+    esperado: ok
+  - id: CT-06
+    texto: "Quero testar a inclusão de garantia imobiliária com valor de avaliação abaixo do mínimo; deve ser rejeitada."
+    esperado: ok
+  - id: CT-07
+    texto: "Testar o bloqueio de garantia com motivo inválido; o sistema deve recusar."
+    esperado: ok            # vira CT-07a (fora do domínio) e CT-07b (vazio) — duas leituras, sem pergunta
+  - id: CT-08
+    texto: "Bloquear garantia com motivo FRA (fraude) deve ser aceito pelo sistema."
+    esperado: divergencia   # exige pergunta: código aceita FRA, normativo não; resposta = seguir normativo

@@ -31,16 +31,18 @@ class AguardandoAprovacao(RuntimeError):
 
 def spec_efetiva(spec: EspecificacaoCenario, plano: Plano) -> EspecificacaoCenario:
     """Aplica ao cenário as decisões que acrescentam expectativas (convenção, premissa, resposta humana)."""
-    extras = []
+    extras, substituir = [], False
     for p in plano.pendencias:
         if spec.id in p.cenarios and p.decisao and isinstance(p.decisao.escolha, dict) and "verificacao" in p.decisao.escolha:
             origem = "funcional" if p.decisao.escolha.get("fonte") else "premissa"
             extras.append(ResultadoEsperado(descricao=p.decisao.escolha.get("descricao", p.duvida),
                                             verificacao=p.decisao.escolha["verificacao"], origem=origem,
                                             fonte=p.decisao.escolha.get("fonte") or f"decisao:{p.id}"))
+            substituir |= bool(p.decisao.escolha.get("substituir"))
     if not extras:
         return spec
-    return spec.model_copy(update={"resultado_esperado": [*spec.resultado_esperado, *extras]})
+    base = [] if substituir else spec.resultado_esperado
+    return spec.model_copy(update={"resultado_esperado": [*base, *extras]})
 
 
 class Condutor:
@@ -261,7 +263,7 @@ class Condutor:
                              "resposta": exe and {"status": exe.get("status")}, "verificacao": ver,
                              "falha": falhas.get(s.id),
                              "alertas": (["oraculo_nao_independente"] if "oraculo_nao_independente" in s.avisos else [])})
-        decisoes = [p.decisao.model_dump(mode="json") for p in plano.pendencias if p.decisao]
+        decisoes = list(self.ev.checkpoint(plano_id)["decisoes"].values())   # inclui decisões de interpretação
         abertas = [p.model_dump(mode="json") for p in plano.pendencias if p.decisao is None and p.tipo != "aprovacao"]
         massa = [{"instancia": i.id, "estado": i.estado, "uso": i.uso, "cenarios": i.cenarios,
                   **{k: v for k, v in (feitos.get(f"F3.provisionar.{i.id}") or feitos.get(f"F2.reservar.{i.id}") or {}).items()

@@ -99,6 +99,16 @@ class Servico:
         registrar(self.ev, plano_id, d)
         return {"ok": True, "pendencia_id": p.id, "degrau": degrau}
 
+    def registrar_interpretacao(self, plano_id: str, cenarios: list[str], duvida: str, escolha: Any, degrau: str,
+                                justificativa: str, confianca: float = 0.7) -> dict:
+        """Decisões tomadas na interpretação (antes do plano), ex.: 'cobrir as duas leituras'."""
+        n = len(self.ev.listar(plano_id, ["decisao_tomada"])) + 1
+        d = Decisao(pendencia_id=f"INT-{n:02d}", assinatura=f"interpretacao:{duvida}", duvida=duvida,
+                    degrau=Degrau(degrau), escolha=escolha, justificativa=justificativa,
+                    evidencias=[f"cenarios:{','.join(cenarios)}"], confianca=confianca)
+        registrar(self.ev, plano_id, d)
+        return {"ok": True, "decisao": d.pendencia_id}
+
     def registrar_perguntas(self, plano_id: str, perguntas: list[dict]) -> dict:
         for q in perguntas:
             self.ev.registrar("pergunta_feita", q, plano_id)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import os
 from datetime import date
 from pathlib import Path
 from typing import Any, Callable
@@ -71,6 +72,7 @@ class Contexto:
         amb = config.ambiente()
         eng = create_engine(amb["banco_url"], connect_args={"check_same_thread": False}
                             if amb["banco_url"].startswith("sqlite") else {})
+        nav = os.environ.get("MASSA_NAVEGADOR") or amb.get("navegador")
         return cls(
             catalogo=Catalogo.carregar(Path(kw.pop("raiz_catalogo", "catalogo"))),
             eventos=RegistroEventos(amb.get("estado_motor", "estado/motor.db")),
@@ -78,7 +80,7 @@ class Contexto:
             http=http or httpx.Client(base_url=amb["api_base"], timeout=15),
             ambiente=amb.get("nome", "DEMO"),
             data_base=date.fromisoformat(str(amb.get("data_base", "2026-01-01"))),
-            navegador=amb.get("navegador"),
+            navegador=nav if nav and nav != "chromium" and Path(nav).exists() else None,
             api_base=amb["api_base"],
             **kw,
         )

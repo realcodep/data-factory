@@ -31,7 +31,9 @@ estados:
       tabela: garantia
       chave: id
       filtros: {tipo: IMO, situacao: B}
-      existe: [{tabela: garantia_contrato, chave_local: id, chave_remota: id_garantia, filtros: {situacao: V}}]
+      existe:
+        - {tabela: garantia_contrato, chave_local: id, chave_remota: id_garantia, filtros: {situacao: V},
+           trazer: {id_contrato_vigente: id_contrato}}
   - id: garantias:garantia_imobiliaria.desassociada
     entidade: garantias:garantia_imobiliaria
     descricao: Garantia ativa que já teve vínculo encerrado e não tem contrato vigente

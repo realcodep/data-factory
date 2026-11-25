@@ -1,6 +1,6 @@
 # Estado da construção
 
-**Etapa atual:** 3 — Motor de massa
+**Etapa atual:** 4 — Planejamento, Guardião e MCP
 
 ## Etapa 1 — Fundação: CONCLUÍDA
 - [x] 1.1 Estrutura do projeto, pyproject, Makefile
@@ -18,8 +18,17 @@
 - [x] 2.6 Federação: garantias consome credito:contrato.ativo; dependência declarada em clusters.yaml
 - [x] 2.7 Build versionado (hash + commit), vocabulário fechado, diff e detecção de defasagem
 
+## Etapa 3 — Motor de massa: CONCLUÍDA
+- [x] 3.1 Regras via catálogo; motor recusa catálogo desatualizado (Contexto.__post_init__)
+- [x] 3.2 Gerador determinístico (semente + chave), CPF/CNPJ sintéticos, interseção de domínio em conflito
+- [x] 3.3 Garimpo somente-leitura + reservas com prazo (consumível exclusivo, compartilhável múltiplo)
+- [x] 3.4 Provisionador por receitas: menor custo, dependências, idempotência, recusa valor inválido
+- [x] 3.5 Montador: payload (negativo viola exatamente a variação), roteiro Playwright, pacote de massa
+- [x] 3.6 Executor com classificação de falhas e nova tentativa; verificador com espera de propagação
+- [x] 3.7 Época do ambiente invalida reservas após recarga
+
 ## Bloqueios
 (nenhum)
 
 ## Próximos passos
-Etapa 3: regras, gerador, garimpo/reserva, provisionador, montador, executor, verificador, época.
+Etapa 4: planejador de suíte, plano a seco, resolvedor de decisões, Guardião, condutor, servidor MCP.

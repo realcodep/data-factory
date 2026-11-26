@@ -1,0 +1,2112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DIF · Descoberta de regras de domínio</title>
+<!--
+  ============================================================================
+  DIF · DESCOBERTA DE REGRAS (upstream da demanda)
+  Arquivo único, organizado para ser quebrado em vários arquivos depois.
+
+  Cada bloco marcado com "FUTURO ARQUIVO: <caminho>" pode ser recortado para
+  o arquivo indicado, sem alterar o código:
+
+    css/tokens.css  css/base.css  css/layout.css  css/components.css  css/views.css
+    js/core/namespace.js   js/config.js        js/core/utils.js     js/ui/icons.js
+    js/data/mock.js        js/core/store.js    js/core/router.js    js/domain/regras.js
+    js/domain/fluxo.js     js/services/extracao.js  js/services/pacotes.js
+    js/ui/components.js    js/views/*.js       js/ui/overlays.js    js/core/actions.js
+    js/app.js
+
+  Para separar: crie os arquivos e carregue-os nesta mesma ordem com
+  <script src="..."></script>. Todos os módulos usam o namespace global DIF.
+  Dados 100% fictícios. Persistência local (localStorage) apenas para a demo.
+  ============================================================================
+-->
+<style>
+/* ============================================================================
+   FUTURO ARQUIVO: css/tokens.css — identidade visual (cores DIF)
+   ========================================================================== */
+:root{
+  --red:#CC092F; --red-deep:#990024; --red-vivid:#E31837; --soft:#FCE8ED;
+  --ink:#17191F; --ink-800:#22252C; --ink-700:#343943; --ink-500:#6B7280; --ink-400:#9AA1AD;
+  --ink-300:#C9CDD4; --ink-200:#E4E6EA; --ink-100:#F3F4F6; --white:#FFFFFF;
+  --tech:#4169A8; --tech-soft:#EAF0F9;
+  --ok:#1E7F52; --ok-soft:#E6F4EC; --warn:#A86B12; --warn-soft:#FDF3E1;
+  --radius:16px; --sidebar:276px;
+  --shadow:0 1px 2px rgba(23,25,31,.04),0 14px 34px -22px rgba(23,25,31,.32);
+  --font:'Inter','Inter Variable','Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+
+/* ============================================================================
+   FUTURO ARQUIVO: css/base.css
+   ========================================================================== */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:14px/1.5 var(--font);color:var(--ink);background:var(--ink-100);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+a{color:inherit}
+h1,h2,h3,h4{margin:0}
+.tnum{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+.muted{color:var(--ink-500)}
+.ic{flex-shrink:0}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:translate(-50%,-48%) scale(.97)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes nodeIn{from{opacity:0}to{opacity:1}}
+@keyframes shimmer{to{background-position:-200% 0}}
+.spin{animation:spin 1s linear infinite}
+
+/* ============================================================================
+   FUTURO ARQUIVO: css/layout.css — shell, sidebar, topbar, stepper
+   ========================================================================== */
+.shell{display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr);height:100vh}
+.sidebar{position:relative;background:var(--ink);color:#fff;display:flex;flex-direction:column;overflow:hidden}
+.sidebar::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(420px 320px at 115% -8%,rgba(204,9,47,.30),transparent 62%),radial-gradient(380px 300px at -25% 108%,rgba(65,105,168,.16),transparent 60%)}
+.sidebar::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:36px 36px}
+.brand{position:relative;z-index:1;padding:24px 22px 16px;display:flex;gap:12px;align-items:center}
+.brand-mark{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+  background:linear-gradient(150deg,var(--red-vivid),var(--red) 45%,var(--red-deep));box-shadow:0 12px 26px -12px rgba(227,24,55,.9)}
+.brand b{display:block;font-size:15px;letter-spacing:-.01em;font-weight:650}
+.brand small{display:block;color:rgba(255,255,255,.5);font-size:12px}
+.nav{position:relative;z-index:1;padding:4px 12px 12px;flex:1;overflow:auto}
+.nav-sec{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.38);font-weight:600;padding:18px 12px 8px}
+.nav-link{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;color:rgba(255,255,255,.72);text-decoration:none;font-weight:500;transition:background .15s,color .15s}
+.nav-link:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav-link.on{background:rgba(255,255,255,.09);color:#fff;box-shadow:inset 3px 0 0 var(--red-vivid)}
+.nav-link .count{margin-left:auto;font-size:12px;color:rgba(255,255,255,.45)}
+.nav-disc{margin:4px 0;padding:12px 10px 8px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+.nav-disc .t{font-size:12.5px;font-weight:600;color:#fff;padding:0 6px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-disc .s{font-size:11.5px;color:rgba(255,255,255,.45);padding:0 6px 8px}
+.nav-step{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font-size:13px}
+.nav-step:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav-step .n{width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.25);font-size:11px;display:grid;place-items:center;flex-shrink:0}
+.nav-step.done .n{background:var(--red);border-color:var(--red);color:#fff}
+.nav-step.on{background:rgba(255,255,255,.09);color:#fff}
+.nav-step.on .n{border-color:var(--red-vivid);box-shadow:0 0 0 3px rgba(227,24,55,.25)}
+.nav-step.locked{opacity:.35;pointer-events:none}
+.side-foot{position:relative;z-index:1;padding:14px 18px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;font-size:12.5px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--ink-700);display:grid;place-items:center;font-weight:600;font-size:12px;color:#fff;flex-shrink:0}
+.side-foot .who{flex:1;min-width:0;line-height:1.3}
+.side-foot .who small{color:rgba(255,255,255,.45);display:block}
+.side-foot .icon-btn{color:rgba(255,255,255,.55)}
+.side-foot .icon-btn:hover{background:rgba(255,255,255,.08);color:#fff}
+
+.main{position:relative;overflow:auto;background-color:var(--ink-100);
+  background-image:linear-gradient(rgba(23,25,31,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(23,25,31,.035) 1px,transparent 1px);background-size:44px 44px}
+.main::before{content:"";position:fixed;top:0;right:0;width:760px;height:460px;pointer-events:none;background:radial-gradient(closest-side,rgba(252,232,237,.85),transparent);opacity:.8}
+.topbar{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.88);backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid var(--ink-200)}
+.topbar-row{display:flex;align-items:center;gap:16px;padding:12px 40px;min-height:60px}
+.crumbs{display:flex;align-items:center;gap:8px;color:var(--ink-500);font-size:13px;min-width:0}
+.crumbs a{text-decoration:none;white-space:nowrap}.crumbs a:hover{color:var(--ink)}
+.crumbs b{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.saved{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-500);white-space:nowrap}
+.saved .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(30,127,82,.15)}
+.stepper{display:flex;align-items:center;padding:2px 40px 14px}
+.step{flex:1;display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:12px;text-decoration:none;color:var(--ink-500);min-width:0;transition:background .15s}
+.step:hover{background:var(--ink-100)}
+.step .n{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--ink-300);font-weight:600;font-size:13px;background:#fff;flex-shrink:0;transition:all .25s var(--ease)}
+.step b{display:block;color:var(--ink);font-size:13.5px;font-weight:600}
+.step small{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step.on .n{border-color:var(--red);color:var(--red);box-shadow:0 0 0 5px rgba(204,9,47,.12)}
+.step.on b{color:var(--red-deep)}
+.step.done .n{background:var(--red);border-color:var(--red);color:#fff}
+.step.locked{opacity:.45;cursor:not-allowed}
+.step.locked:hover{background:transparent}
+.step-line{flex:0 0 40px;height:2px;background:var(--ink-200);border-radius:2px;overflow:hidden}
+.step-line span{display:block;height:100%;background:var(--red);transition:width .6s var(--ease)}
+
+.view{position:relative;padding:34px 40px 40px;max-width:1500px;margin:0 auto;animation:fadeUp .45s var(--ease)}
+.view.still{animation:none}
+.wfoot{position:sticky;bottom:0;z-index:15;display:flex;align-items:center;gap:14px;padding:14px 40px;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-top:1px solid var(--ink-200)}
+.wfoot .hint{flex:1;text-align:center;color:var(--ink-500);font-size:13px}
+
+/* ============================================================================
+   FUTURO ARQUIVO: css/components.css
+   ========================================================================== */
+/* cabeçalho de página */
+.ph{display:flex;align-items:flex-end;gap:24px;margin-bottom:26px}
+.eyebrow{display:flex;align-items:center;gap:12px;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-500)}
+.eyebrow .num{color:var(--red)}
+.eyebrow .line{width:28px;height:1.5px;background:var(--red)}
+.ph h1{margin:10px 0 0;font-size:32px;line-height:1.14;letter-spacing:-.028em;font-weight:650}
+.ph h1 em,.hl{font-style:normal;color:var(--red)}
+.ph p{margin:8px 0 0;color:var(--ink-700);font-size:15px;max-width:780px}
+.ph .actions{margin-left:auto;display:flex;gap:10px;flex-shrink:0}
+
+/* botões */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 16px;border-radius:10px;border:1px solid var(--ink-200);
+  background:#fff;font-weight:600;font-size:13.5px;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn:hover{border-color:var(--ink-300);background:var(--ink-100)}
+.btn.primary{background:linear-gradient(150deg,var(--red-vivid),var(--red) 55%,var(--red-deep));color:#fff;border-color:transparent;box-shadow:0 12px 24px -14px rgba(204,9,47,.85)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.dark{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.dark:hover{background:var(--ink-700)}
+.btn.ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.btn.ok:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.ghost:hover{background:var(--ink-100)}
+.btn.on-dark{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:#fff}
+.btn.on-dark:hover{background:rgba(255,255,255,.14)}
+.btn.sm{height:30px;padding:0 11px;font-size:12.5px;border-radius:8px}
+.btn.lg{height:46px;padding:0 22px;font-size:14.5px;border-radius:12px}
+.btn:disabled,.btn.disabled{opacity:.42;cursor:not-allowed;filter:none;box-shadow:none}
+.icon-btn{width:32px;height:32px;display:inline-grid;place-items:center;border-radius:8px;border:0;background:transparent;color:var(--ink-500);transition:all .12s}
+.icon-btn:hover{background:var(--ink-100);color:var(--ink)}
+.icon-btn.ok:hover{background:var(--ok-soft);color:var(--ok)}
+.icon-btn.no:hover{background:var(--soft);color:var(--red)}
+.icon-btn:disabled{opacity:.3;cursor:not-allowed;background:transparent}
+.link{border:0;background:none;padding:0;color:var(--red);font-weight:600;cursor:pointer;text-decoration:none}
+.link:hover{text-decoration:underline}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid transparent;white-space:nowrap;line-height:1}
+.badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.b-neutral{background:var(--ink-100);color:var(--ink-700);border-color:var(--ink-200)}
+.b-red{background:var(--soft);color:var(--red-deep);border-color:rgba(204,9,47,.2)}
+.b-tech{background:var(--tech-soft);color:var(--tech);border-color:rgba(65,105,168,.22)}
+.b-ok{background:var(--ok-soft);color:var(--ok);border-color:rgba(30,127,82,.2)}
+.b-warn{background:var(--warn-soft);color:var(--warn);border-color:rgba(168,107,18,.22)}
+.b-dashed{border:1px dashed var(--ink-300);color:var(--ink-500);background:transparent}
+.b-dark{background:var(--ink);color:#fff}
+.b-sm{height:20px;padding:0 8px;font-size:11px}
+.mchip{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;background:var(--ink-100);color:var(--ink-700);font:11.5px var(--mono)}
+
+/* cards */
+.card{background:#fff;border:1px solid var(--ink-200);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--ink-200)}
+.card-h h3{font-size:15px;font-weight:650}
+.card-h .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.card-b{padding:20px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g6{grid-template-columns:repeat(6,minmax(0,1fr))}
+.split{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;align-items:start}
+.sec-t{display:flex;align-items:center;gap:12px;margin:30px 0 14px}
+.sec-t:first-child{margin-top:0}
+.sec-t h2{font-size:16.5px;font-weight:650;letter-spacing:-.01em}
+.sec-t .sub{color:var(--ink-500);font-size:13px}
+.sec-t .r{margin-left:auto;display:flex;gap:8px}
+.ico-box{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--ink-100);color:var(--ink-700);flex-shrink:0}
+.ico-box.red{background:var(--soft);color:var(--red)}
+.ico-box.dark{background:var(--ink);color:#fff}
+.ico-box.sm{width:32px;height:32px;border-radius:9px}
+
+/* KPI */
+.kpi{padding:16px 18px;position:relative;overflow:hidden}
+.kpi .l{font-size:12.5px;color:var(--ink-500);display:flex;gap:8px;align-items:center;font-weight:500}
+.kpi .v{font-size:28px;font-weight:650;letter-spacing:-.03em;margin-top:4px;line-height:1.1}
+.kpi .s{font-size:12px;color:var(--ink-500);margin-top:2px}
+.kpi.click{cursor:pointer;transition:all .15s;text-align:left;border:1px solid var(--ink-200)}
+.kpi.click:hover{border-color:var(--ink-300);transform:translateY(-1px)}
+.kpi.on{border-color:var(--red);box-shadow:0 0 0 3px rgba(204,9,47,.12)}
+.kpi.on .l{color:var(--red-deep)}
+.kpi .acc{position:absolute;left:0;top:0;bottom:0;width:3px}
+
+/* progresso */
+.prog{height:6px;border-radius:999px;background:var(--ink-200);overflow:hidden}
+.prog>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--red-deep),var(--red-vivid));transition:width .35s var(--ease)}
+.prog.ok>span{background:var(--ok)}
+.prog.lg{height:10px}
+.prog.busy>span{background:linear-gradient(90deg,var(--red-deep),var(--red-vivid),var(--red-deep));background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+.on-dark .prog{background:rgba(255,255,255,.12)}
+
+/* status */
+.status{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.status .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.st-ok{color:var(--ok)} .st-err{color:var(--red)} .st-wait{color:var(--ink-500)} .st-run{color:var(--tech)}
+
+/* formulários */
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:12.5px;font-weight:600;color:var(--ink-700)}
+.field small{color:var(--ink-500);font-size:12px}
+.inp{height:40px;border:1px solid var(--ink-200);border-radius:10px;padding:0 12px;background:#fff;outline:0;width:100%;transition:border-color .15s,box-shadow .15s}
+textarea.inp{height:auto;padding:10px 12px;resize:vertical;min-height:88px;line-height:1.5}
+.inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(204,9,47,.12)}
+.sel{flex:0 0 auto;height:36px;border:1px solid var(--ink-200);border-radius:10px;padding:0 30px 0 12px;background:#fff;appearance:none;font-size:13px;cursor:pointer;max-width:220px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.sel.on{border-color:var(--red);color:var(--red-deep);background-color:#FFF7F9}
+.sel:focus{outline:0;border-color:var(--red)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--ink-200);background:#fff;font-size:12.5px;font-weight:600;color:var(--ink-700);display:inline-flex;align-items:center;gap:6px}
+.chip:hover{border-color:var(--ink-300)}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.drop{border:1.5px dashed var(--ink-300);border-radius:14px;padding:26px;text-align:center;color:var(--ink-500);background:#FAFAFB;cursor:pointer;transition:all .15s;display:block}
+.drop:hover,.drop.over{border-color:var(--red);background:#FFF7F9;color:var(--red-deep)}
+.files{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.files div{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:8px 10px;border-radius:8px;background:var(--ink-100)}
+
+/* tabela */
+.tbl-wrap{overflow:auto}
+table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
+.tbl th{position:sticky;top:0;z-index:1;background:#FAFAFB;text-align:left;font-weight:600;font-size:11.5px;color:var(--ink-500);letter-spacing:.06em;text-transform:uppercase;padding:11px 14px;border-bottom:1px solid var(--ink-200);white-space:nowrap}
+.tbl td{padding:13px 14px;border-bottom:1px solid var(--ink-200);vertical-align:top}
+.tbl tr.row{cursor:pointer}
+.tbl tr.row td{transition:background .12s}
+.tbl tr.row:hover td{background:#FBFBFC}
+.tbl tr.row.sel td{background:#FFF6F8}
+.tbl tr.row.conf td:first-child{box-shadow:inset 3px 0 0 var(--red-vivid)}
+.tbl tr.row.rej .rtxt{color:var(--ink-500);text-decoration:line-through;text-decoration-color:var(--ink-300)}
+.tbl tr.grp td{background:linear-gradient(90deg,#F6F7F9,#FAFAFB);padding:10px 14px;border-bottom:1px solid var(--ink-200)}
+.tbl td.c-chk,.tbl th.c-chk{width:42px;padding-right:0}
+.tbl td.acts{white-space:nowrap;text-align:right;padding-top:9px}
+.grp-in{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.grp-in b{font-size:13.5px}
+.grp-in .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.chk{width:17px;height:17px;accent-color:var(--red);cursor:pointer;margin:2px 0 0}
+.rtxt{font-weight:550;color:var(--ink);line-height:1.45}
+.rmeta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.rid{font:12px var(--mono);color:var(--ink-500)}
+.cell2 b{display:block;font-weight:600;font-size:13px}
+.cell2 small{color:var(--ink-500);font-size:12px}
+.sstack{display:flex;align-items:center}
+.sstack span{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:#fff;border:1px solid var(--ink-200);margin-left:-6px;color:var(--ink-700);box-shadow:0 0 0 2px #fff}
+.sstack span:first-child{margin-left:0}
+.sstack span.f{color:var(--red);background:var(--soft);border-color:rgba(204,9,47,.18)}
+.conf{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11.5px;color:var(--ink-500)}
+.conf i{display:block;width:54px;height:4px;border-radius:2px;background:var(--ink-200);overflow:hidden}
+.conf i b{display:block;height:100%;background:var(--ink-700)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--ink-200)}
+.search{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border:1px solid var(--ink-200);border-radius:10px;background:#fff;flex:1;min-width:240px;max-width:380px;color:var(--ink-500)}
+.search:focus-within{border-color:var(--red);box-shadow:0 0 0 3px rgba(204,9,47,.12)}
+.search input{border:0;outline:0;flex:1;background:transparent;color:var(--ink);min-width:0}
+.selbar{display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--ink);color:#fff;flex-wrap:wrap;animation:fade .2s}
+.selbar .n{font-weight:650}
+.selbar .r{margin-left:auto;display:flex;gap:8px}
+.selbar .link{color:#FF9AAE}
+.tbl-top{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--ink-200);background:#FCFCFD;flex-wrap:wrap}
+.tbl-top .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.pager{display:flex;align-items:center;gap:6px;padding:12px 18px;color:var(--ink-500);font-size:13px;flex-wrap:wrap}
+.pager .pg{min-width:34px;height:34px;border-radius:9px;border:1px solid var(--ink-200);background:#fff;font-weight:600;font-size:13px}
+.pager .pg:hover{border-color:var(--ink-300)}
+.pager .pg.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pager .pg:disabled{opacity:.35;cursor:not-allowed}
+.pager .sp{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+/* overlays */
+.backdrop{position:fixed;inset:0;background:rgba(23,25,31,.45);backdrop-filter:blur(2px);z-index:50;animation:fade .2s}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(660px,96vw);background:#fff;z-index:51;display:flex;flex-direction:column;box-shadow:-30px 0 60px -30px rgba(23,25,31,.55);animation:slideIn .32s var(--ease)}
+.drawer-h{padding:20px 26px 18px;border-bottom:1px solid var(--ink-200)}
+.drawer-h .top{display:flex;align-items:center;gap:10px}
+.drawer-h .top .x{margin-left:auto}
+.drawer-h h2{font-size:20px;line-height:1.35;letter-spacing:-.015em;font-weight:650;margin-top:12px}
+.drawer-b{flex:1;overflow:auto;padding:20px 26px 28px}
+.drawer-b>.dsec:first-child{margin-top:0}
+.drawer-f{padding:14px 26px;border-top:1px solid var(--ink-200);display:flex;gap:10px;align-items:center;background:#FAFAFB}
+.drawer-f .r{margin-left:auto;display:flex;gap:10px}
+.dsec{margin-top:24px}
+.dsec>h4{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-500);font-weight:650;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--ink-200);border:1px solid var(--ink-200);border-radius:12px;overflow:hidden}
+.meta-grid div{background:#fff;padding:10px 14px}
+.meta-grid small{display:block;font-size:11.5px;color:var(--ink-500)}
+.meta-grid b{font-size:13.5px;font-weight:600}
+.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(620px,94vw);max-height:90vh;display:flex;flex-direction:column;background:#fff;border-radius:20px;z-index:61;box-shadow:0 40px 90px -30px rgba(23,25,31,.6);animation:pop .26s var(--ease)}
+.modal.wide{width:min(940px,94vw)}
+.modal-h{display:flex;align-items:flex-start;gap:14px;padding:22px 24px 16px}
+.modal-h h3{font-size:18px;font-weight:650;letter-spacing:-.01em}
+.modal-h p{margin:4px 0 0;color:var(--ink-500);font-size:13px}
+.modal-h .x{margin-left:auto}
+.modal-b{padding:4px 24px 20px;overflow:auto}
+.modal-f{padding:14px 24px;border-top:1px solid var(--ink-200);display:flex;gap:10px;justify-content:flex-end;background:#FAFAFB;border-radius:0 0 20px 20px}
+.modal-f .l{margin-right:auto}
+.backdrop.top{z-index:60}
+.still,.still *{animation:none!important}
+
+/* código e evidência */
+.code{font:12.5px/1.6 var(--mono);background:var(--ink);color:#E6E8EC;border-radius:10px;padding:12px 14px;white-space:pre-wrap;word-break:break-word;margin:0}
+.code .ln{color:rgba(255,255,255,.35);margin-right:12px;user-select:none}
+.ev{border:1px solid var(--ink-200);border-radius:12px;padding:12px;margin-bottom:10px;background:#fff}
+.ev-h{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px}
+.ev-h b{font-weight:600}
+.ev-h .r{margin-left:auto;display:flex;gap:6px}
+.json{font:12.5px/1.6 var(--mono);background:var(--ink);color:#E6E8EC;border-radius:12px;padding:16px;white-space:pre;overflow:auto;max-height:58vh;margin:0}
+.json .k{color:#9DB8E6}.json .s{color:#F7B3C2}.json .n{color:#F5C77E}.json .b{color:#8FD0B1}
+
+/* conflito */
+.conflict{border:1px solid rgba(204,9,47,.28);background:linear-gradient(180deg,#FFF5F7,#fff 70%);border-radius:16px;padding:16px}
+.conflict .t{display:flex;align-items:center;gap:10px;font-weight:650;color:var(--red-deep)}
+.conflict p{margin:6px 0 0;color:var(--ink-700);font-size:13px}
+.versions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.version{border:1px solid var(--ink-200);border-radius:12px;background:#fff;padding:14px;display:flex;flex-direction:column;gap:8px}
+.version.chosen{border-color:var(--ok);box-shadow:0 0 0 3px rgba(30,127,82,.14)}
+.version .val{font-size:18px;font-weight:650;letter-spacing:-.01em}
+.version .ref{font-size:12px;color:var(--ink-500)}
+.version .code{font-size:11.5px;padding:8px 10px}
+.resolved{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--ok-soft);color:var(--ok);font-size:13px;font-weight:600}
+.resolved.warn{background:var(--warn-soft);color:var(--warn)}
+.resolved .link{margin-left:auto}
+
+/* timeline */
+.tl{position:relative;padding-left:22px}
+.tl::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:1.5px;background:var(--ink-200)}
+.tl-i{position:relative;padding:0 0 14px;font-size:13px}
+.tl-i::before{content:"";position:absolute;left:-21px;top:5px;width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid var(--red)}
+.tl-i b{font-weight:600}
+.tl-i small{display:block;color:var(--ink-500);font-size:12px}
+.tl-i .why{margin-top:4px;padding:6px 10px;border-radius:8px;background:var(--ink-100);font-size:12.5px;color:var(--ink-700)}
+
+/* toast */
+#toasts{position:fixed;bottom:22px;right:22px;z-index:90;display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+.toast{display:flex;gap:10px;align-items:center;padding:12px 16px;border-radius:12px;background:var(--ink);color:#fff;box-shadow:0 20px 40px -20px rgba(23,25,31,.7);animation:toastIn .25s var(--ease);font-size:13.5px;max-width:440px}
+.toast.ok .ic{color:#7FD4A8}.toast.err .ic{color:#FF8FA5}.toast.warn .ic{color:#F5C77E}
+
+/* vazio */
+.empty{text-align:center;padding:52px 24px;color:var(--ink-500)}
+.empty .ico-box{width:64px;height:64px;border-radius:18px;margin:0 auto 16px}
+.empty h3{color:var(--ink);margin:0 0 6px;font-size:17px;font-weight:650}
+.empty p{margin:0 auto 18px;max-width:440px}
+
+/* tooltip */
+[data-tip]{position:relative}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:12px;font-weight:500;padding:6px 10px;border-radius:8px;white-space:nowrap;z-index:30;pointer-events:none;letter-spacing:0;text-transform:none}
+
+/* ============================================================================
+   FUTURO ARQUIVO: css/views.css
+   ========================================================================== */
+/* home */
+.hero{position:relative;overflow:hidden;border-radius:24px;background:var(--ink);color:#fff;padding:44px 48px;min-height:300px;box-shadow:0 40px 80px -50px rgba(23,25,31,.95)}
+.hero .art{position:absolute;right:-40px;top:-30px;width:760px;height:380px}
+.hero .fade{position:absolute;inset:0;background:linear-gradient(90deg,var(--ink) 38%,rgba(23,25,31,.25) 72%,rgba(23,25,31,0))}
+.hero .in{position:relative;max-width:640px}
+.hero h1{font-size:44px;line-height:1.04;letter-spacing:-.035em;font-weight:700;margin:16px 0 0}
+.hero h1 em{color:var(--red-vivid);font-style:normal}
+.hero p{color:rgba(255,255,255,.72);font-size:16px;margin:14px 0 24px;max-width:560px}
+.hero .eyebrow{color:rgba(255,255,255,.55)}
+.flow{display:flex;gap:8px;align-items:center;margin-top:26px;color:rgba(255,255,255,.4);font-size:12.5px;flex-wrap:wrap}
+.flow span.c{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:rgba(255,255,255,.85)}
+.flow span.c i{font-style:normal;color:var(--red-vivid);font-weight:700}
+.art .edge{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.2s var(--ease) forwards}
+.art .node{opacity:0;animation:nodeIn .6s ease forwards}
+.dcard{padding:22px;display:flex;flex-direction:column;gap:14px;transition:transform .2s var(--ease),box-shadow .2s;cursor:pointer;text-decoration:none;color:inherit}
+.dcard:hover{transform:translateY(-3px);box-shadow:0 28px 50px -30px rgba(23,25,31,.5)}
+.dcard h3{font-size:17px;font-weight:650;letter-spacing:-.01em;line-height:1.3}
+.dcard p{margin:0;color:var(--ink-500);font-size:13px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:39px}
+.mini{display:flex;gap:6px}
+.mini i{flex:1;height:5px;border-radius:3px;background:var(--ink-200)}
+.mini i.done{background:var(--red)}
+.mini i.on{background:linear-gradient(90deg,var(--red) 50%,var(--ink-200) 50%)}
+.stats{display:flex;gap:22px;color:var(--ink-500);font-size:12px}
+.stats b{color:var(--ink);font-size:17px;display:block;font-weight:650;letter-spacing:-.02em}
+.dcard .foot{display:flex;align-items:center;gap:10px;padding-top:14px;border-top:1px solid var(--ink-200)}
+.dcard .foot .r{margin-left:auto}
+.dnew{border:1.5px dashed var(--ink-300);background:transparent;box-shadow:none;display:grid;place-items:center;text-align:center;color:var(--ink-500);min-height:240px}
+.dnew:hover{border-color:var(--red);color:var(--red-deep);background:#FFF7F9}
+
+/* fontes */
+.stype{padding:18px;display:flex;flex-direction:column;gap:10px;cursor:pointer;text-align:left;border:1px solid var(--ink-200);background:#fff;border-radius:16px;transition:all .18s var(--ease);position:relative}
+.stype:hover{border-color:var(--red);box-shadow:0 18px 40px -26px rgba(204,9,47,.65);transform:translateY(-2px)}
+.stype:hover .ico-box{background:var(--soft);color:var(--red)}
+.stype .plus{position:absolute;top:16px;right:16px;color:var(--ink-300);transition:color .15s}
+.stype:hover .plus{color:var(--red)}
+.stype b{font-size:14.5px;font-weight:650}
+.stype small{color:var(--ink-500);font-size:12.5px;line-height:1.4}
+.src{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px solid var(--ink-200);border-radius:14px;background:#fff;transition:border-color .15s}
+.src+.src{margin-top:10px}
+.src:hover{border-color:var(--ink-300)}
+.src .meta{flex:1;min-width:0}
+.src .meta b{display:block;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src .meta small{display:block;color:var(--ink-500);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src .badges{display:flex;gap:6px}
+.balance{display:flex;flex-direction:column;gap:14px}
+.balance .row{display:flex;align-items:center;gap:10px;font-size:13px}
+.balance .row .prog{flex:1}
+.check-i{display:flex;gap:10px;align-items:flex-start;font-size:13px;padding:6px 0;color:var(--ink-500)}
+.check-i .c{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--ink-300);flex-shrink:0}
+.check-i.ok{color:var(--ink)}
+.check-i.ok .c{background:var(--ok);border-color:var(--ok);color:#fff}
+.lib-i{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--ink-200)}
+.lib-i:first-child{border-top:0}
+.lib-i .meta{flex:1;min-width:0;font-size:13px}
+.lib-i .meta b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lib-i .meta small{color:var(--ink-500);font-size:12px}
+
+/* levantamento */
+.run{position:relative;overflow:hidden;border-radius:22px;background:var(--ink);color:#fff;padding:28px 30px}
+.run::before{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 100% 0,rgba(204,9,47,.28),transparent 65%);pointer-events:none}
+.run .in{position:relative;display:flex;gap:32px;align-items:center}
+.run .pct{font-size:56px;font-weight:700;letter-spacing:-.04em;line-height:1}
+.run .pct small{font-size:22px;color:rgba(255,255,255,.5);font-weight:600}
+.run .lbl{color:rgba(255,255,255,.6);font-size:13px;margin-top:6px}
+.run .counters{display:flex;gap:28px;margin-left:auto;margin-right:10px}
+.run .counters div b{display:block;font-size:24px;font-weight:650;letter-spacing:-.02em}
+.run .counters div small{color:rgba(255,255,255,.55);font-size:12px}
+.run .bar{position:relative;margin-top:22px}
+.srun{display:grid;grid-template-columns:42px minmax(0,1.2fr) minmax(0,1.4fr) 120px 120px;gap:16px;align-items:center;padding:14px 18px;border-top:1px solid var(--ink-200)}
+.srun:first-child{border-top:0}
+.srun .meta b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srun .meta small{color:var(--ink-500);font-size:12px}
+.srun .cnt{font-size:12.5px;color:var(--ink-500);text-align:right}
+.feed{max-height:560px;overflow:auto}
+.feed-i{display:flex;gap:12px;padding:12px 18px;border-top:1px solid var(--ink-200)}
+.feed-i:first-child{border-top:0}
+.feed-i.new{animation:fadeUp .4s var(--ease);background:linear-gradient(90deg,#FFF5F7,#fff)}
+.feed-i .t{font-size:13px;font-weight:550;line-height:1.4}
+.feed-i .m{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.explain{display:flex;flex-direction:column;gap:14px}
+.explain .e{display:flex;gap:12px;align-items:flex-start}
+.explain .e b{display:block;font-size:13.5px}
+.explain .e small{color:var(--ink-500);font-size:12.5px}
+.done-banner{display:flex;align-items:center;gap:16px;padding:18px 22px;border-radius:16px;background:linear-gradient(90deg,var(--ok-soft),#fff);border:1px solid rgba(30,127,82,.22);margin-bottom:20px}
+.done-banner .ico-box{background:var(--ok);color:#fff}
+.done-banner b{display:block;font-size:15px}
+.done-banner small{color:var(--ink-700)}
+.done-banner .r{margin-left:auto;display:flex;gap:10px}
+
+/* validação */
+.valbar{display:flex;align-items:center;gap:14px;margin:0 0 18px;font-size:13px;color:var(--ink-500)}
+.valbar .prog{flex:1;max-width:520px}
+.valbar b{color:var(--ink)}
+
+/* pacotes */
+.pk-sum{display:flex;flex-direction:column;gap:0}
+.pk-sum .rowi{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--ink-200);font-size:13.5px}
+.pk-sum .rowi:first-child{border-top:0}
+.pk-sum .rowi b{margin-left:auto;font-size:15px}
+.ver{display:flex;gap:14px;padding:14px 16px;border-radius:14px;border:1px solid var(--ink-200);background:#fff;cursor:pointer;transition:all .15s;align-items:center}
+.vers{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:12px;margin-bottom:18px}
+.ver:hover{border-color:var(--ink-300)}
+.ver.on{border-color:var(--red);box-shadow:0 0 0 3px rgba(204,9,47,.12)}
+.ver .vn{width:48px;height:48px;border-radius:12px;display:grid;place-items:center;background:var(--ink);color:#fff;font-weight:700;font-size:15px;flex-shrink:0}
+.ver.on .vn{background:linear-gradient(150deg,var(--red-vivid),var(--red-deep))}
+.ver .meta{flex:1;min-width:0}
+.ver .meta b{display:block;font-weight:650}
+.ver .meta small{color:var(--ink-500);font-size:12.5px}
+.diffc{display:flex;gap:6px}
+.pkg{padding:18px;display:flex;flex-direction:column;gap:12px}
+.pkg .h{display:flex;align-items:center;gap:12px}
+.pkg .h b{display:block;font-weight:650;font-size:14.5px}
+.pkg .h small{color:var(--ink-500);font:12px var(--mono)}
+.pkg .nums{display:flex;gap:22px}
+.pkg .nums div b{display:block;font-size:22px;font-weight:650;letter-spacing:-.02em}
+.pkg .nums div small{color:var(--ink-500);font-size:12px}
+.pkg .acts{display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--ink-200)}
+.dl{display:flex;flex-direction:column;gap:6px}
+.dl .di{display:flex;gap:10px;align-items:flex-start;font-size:13px;padding:8px 10px;border-radius:10px;background:var(--ink-100)}
+.dl .di .s{font-weight:700;width:14px;text-align:center}
+.dl .di.add .s{color:var(--ok)}.dl .di.alt .s{color:var(--warn)}.dl .di.rem .s{color:var(--red)}
+.gen-steps{display:flex;flex-direction:column;gap:12px;margin:8px 0}
+.gen-s{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--ink-400);transition:color .2s}
+.gen-s .c{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--ink-300);display:grid;place-items:center;flex-shrink:0}
+.gen-s.on{color:var(--ink);font-weight:600}
+.gen-s.on .c{border-color:var(--red);color:var(--red)}
+.gen-s.ok{color:var(--ink)}
+.gen-s.ok .c{background:var(--ok);border-color:var(--ok);color:#fff}
+
+@media (max-width:1280px){.g6{grid-template-columns:repeat(3,minmax(0,1fr))}.split{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.art .edge{stroke-dashoffset:0}.art .node{opacity:1}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main">
+    <header class="topbar" id="topbar"></header>
+    <div id="view-wrap"></div>
+  </main>
+</div>
+<div id="overlay"></div>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+/* ============================================================================
+   FUTURO ARQUIVO: js/core/namespace.js
+   ========================================================================== */
+window.DIF = window.DIF || {};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/config.js — constantes e rótulos de domínio
+   ========================================================================== */
+DIF.config = {
+  storageKey: 'dif-descoberta-regras-v1',
+  usuario: 'Você',
+  clusters: ['Garantias', 'Crédito', 'Limites', 'Preços', 'Moeda Local'],
+  etapas: [
+    { id: 'fontes', n: 1, nome: 'Fontes', desc: 'De onde descobrir', icon: 'layers' },
+    { id: 'levantamento', n: 2, nome: 'Levantamento', desc: 'Extrair as regras', icon: 'search' },
+    { id: 'validacao', n: 3, nome: 'Validação', desc: 'Aprovar ou rejeitar', icon: 'shield' },
+    { id: 'pacotes', n: 4, nome: 'Pacotes', desc: 'Fatos e evidências', icon: 'box' },
+  ],
+  entidades: { garantia: 'Garantia imobiliária', contrato: 'Contrato', vinculo: 'Vínculo garantia–contrato', outra: 'Outra' },
+  operacoes: { inclusao: 'Inclusão', associacao: 'Associação', bloqueio: 'Bloqueio', desassociacao: 'Desassociação', exclusao: 'Exclusão', consulta: 'Consulta' },
+  tiposRegra: { validacao: 'Validação de campo', dominio: 'Domínio', estado: 'Regra de estado', calculo: 'Cálculo', dependencia: 'Dependência' },
+  classificacoes: { fato: 'Fato verificado', interpretacao: 'Interpretação', hipotese: 'Hipótese' },
+  status: { pendente: 'Pendente', revisao: 'Em revisão', aprovada: 'Aprovada', rejeitada: 'Rejeitada' },
+  origens: { auto: 'Automática', manual: 'Manual' },
+  agrupamentos: { entidade: 'Entidade', operacao: 'Operação', tipo: 'Tipo de regra', fonte: 'Fonte principal', status: 'Status', classificacao: 'Classificação', nenhum: 'Sem agrupamento' },
+  motivosRejeicao: ['Regra obsoleta', 'Duplicada', 'Interpretação incorreta', 'Fora do escopo da demanda', 'Evidência insuficiente'],
+  pageSizes: [10, 15, 25, 50],
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/core/utils.js
+   ========================================================================== */
+DIF.util = {
+  esc: s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
+  /** Mascara CPF/CNPJ em qualquer texto exibido. */
+  mask: s => String(s ?? '')
+    .replace(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?(\d{2})\b/g, (m, d) => `**.***.***/****-${d}`)
+    .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?(\d{2})\b/g, (m, d) => `***.***.***-${d}`),
+  n: v => Number(v || 0).toLocaleString('pt-BR'),
+  pct: (a, b) => (b ? Math.round((a / b) * 100) : 0),
+  pad: (v, n) => String(v).padStart(n, '0'),
+  data: ts => new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+  dataHora: ts => new Date(ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }),
+  hora: ts => new Date(ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+  relativo(ts) {
+    const s = Math.round((Date.now() - ts) / 1000);
+    if (s < 45) return 'agora';
+    if (s < 3600) return `há ${Math.round(s / 60)} min`;
+    if (s < 86400) return `há ${Math.round(s / 3600)} h`;
+    return `há ${Math.round(s / 86400)} d`;
+  },
+  prng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; },
+  hash(str) { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); },
+  slug: s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+  clone: o => JSON.parse(JSON.stringify(o)),
+  groupBy(list, fn) { return list.reduce((acc, x) => { (acc[fn(x)] ||= []).push(x); return acc; }, {}); },
+  download(nome, conteudo) {
+    const url = URL.createObjectURL(new Blob([conteudo], { type: 'application/json' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: nome });
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
+  jsonHtml(obj) {
+    const esc = DIF.util.esc(JSON.stringify(obj, null, 2));
+    return esc.replace(/(&quot;(?:\\.|[^&]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false|null)\b|-?\b\d+(?:\.\d+)?\b/g, (m, str, colon, lit) => {
+      if (str) return colon ? `<span class="k">${str}</span>${colon}` : `<span class="s">${str}</span>`;
+      if (lit) return `<span class="b">${m}</span>`;
+      return `<span class="n">${m}</span>`;
+    });
+  },
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/ui/icons.js — ícones minimalistas (traço)
+   ========================================================================== */
+DIF.icons = {
+  code: '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>',
+  plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  cpu: '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
+  box: '<path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  plus: '<path d="M5 12h14M12 5v14"/>',
+  chevR: '<path d="m9 18 6-6-6-6"/>',
+  chevL: '<path d="m15 18-6-6 6-6"/>',
+  arrowR: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  arrowL: '<path d="M19 12H5M11 18l-6-6 6-6"/>',
+  alert: '<path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"/><path d="M12 9v4M12 17h.01"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.7 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.5 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  sparkles: '<path d="M12 3l1.9 5.8L20 10.7l-6.1 1.9L12 18.4l-1.9-5.8L4 10.7l6.1-1.9z"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/>',
+  eye: '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  refresh: '<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/>',
+  play: '<path d="M6 3l14 9-14 9z"/>',
+  pause: '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  trash: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  layers: '<path d="m12 2 10 5-10 5L2 7Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>',
+  network: '<circle cx="12" cy="5" r="2.5"/><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="19" r="2.5"/><path d="M12 7.5v4M12 11.5 6.5 17M12 11.5l5.5 5.5"/>',
+  compass: '<circle cx="12" cy="12" r="10"/><path d="m16.2 7.8-2.1 6.3-6.3 2.1 2.1-6.3z"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  undo: '<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  scale: '<path d="M12 3v18M7 21h10M3 7h18"/><path d="m3 7 3 8c-.9.6-1.9 1-3 1s-2.1-.4-3-1" transform="translate(3 0)"/><path d="m21 7-3 8c.9.6 1.9 1 3 1" transform="translate(-3 0)"/>',
+  home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  git: '<circle cx="12" cy="12" r="3"/><path d="M3 12h6M15 12h18"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  quote: '<path d="M3 21c3 0 7-1 7-8V5H3v8h4c0 3-1 5-4 5"/><path d="M14 21c3 0 7-1 7-8V5h-7v8h4c0 3-1 5-4 5"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  filter: '<path d="M22 3H2l8 9.5V19l4 2v-8.5z"/>',
+};
+DIF.icon = (nome, tam = 18, extra = '') =>
+  `<svg class="ic" width="${tam}" height="${tam}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${DIF.icons[nome] || ''}</svg>`;
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/data/mock.js — catálogo de tipos de fonte, regras e semente fictícios
+   ========================================================================== */
+DIF.sourceTypes = {
+  codigo: { nome: 'Código-fonte', icon: 'code', classe: 'tecnica', desc: 'COBOL, copybooks, JCL, Java e Node.js', rotulo: 'arquivos', vel: 2, confianca: 0.95, classif: 'fato',
+    campos: [{ k: 'repo', l: 'Repositório', ph: 'git.interno/garantias/gran-core', req: true }, { k: 'branch', l: 'Branch', ph: 'main' }, { k: 'filtro', l: 'Pastas ou filtros', ph: 'src/cobol/**, copybooks/**, src/main/java/**' }] },
+  banco: { nome: 'Banco de dados', icon: 'database', classe: 'tecnica', desc: 'Schemas, tabelas e constraints', rotulo: 'tabelas', vel: 2, confianca: 0.97, classif: 'fato',
+    campos: [{ k: 'conexao', l: 'Conexão cadastrada', tipo: 'select', ops: ['DB2 · HML · GARANTIAS', 'DB2 · HML · CRÉDITO', 'PostgreSQL · HML · CONECTA'], req: true }, { k: 'schema', l: 'Schema', ph: 'GAR' }, { k: 'tabelas', l: 'Tabelas', ph: 'GARANTIA, GARANTIA_CONTRATO' }] },
+  api: { nome: 'Contrato de API', icon: 'plug', classe: 'tecnica', desc: 'OpenAPI / Swagger dos serviços', rotulo: 'endpoints', vel: 2, confianca: 0.9, classif: 'fato',
+    campos: [{ k: 'url', l: 'URL ou caminho do OpenAPI', ph: 'https://api.hml.interno/garantias/v1/openapi.json', req: true }] },
+  mcp: { nome: 'Servidor MCP', icon: 'cpu', classe: 'tecnica', desc: 'Recursos via Model Context Protocol', rotulo: 'recursos', vel: 1, confianca: 0.86, classif: 'fato',
+    campos: [{ k: 'servidor', l: 'Servidor', tipo: 'select', ops: ['mcp-garantias (HML)', 'mcp-conecta-cws', 'mcp-domain-packs'], req: true }, { k: 'recursos', l: 'Recursos', ph: 'programas, jobs, filas, tabelas' }] },
+  documento: { nome: 'Documentos', icon: 'file', classe: 'funcional', desc: 'Normativos, histórias e manuais', rotulo: 'páginas', vel: 1, confianca: 0.78, classif: 'interpretacao', upload: true, aceita: '.pdf,.doc,.docx,.xlsx,.md,.txt' },
+  imagem: { nome: 'Imagens', icon: 'image', classe: 'funcional', desc: 'Prints de tela, fluxos e diagramas', rotulo: 'imagens', vel: 1, confianca: 0.55, classif: 'hipotese', upload: true, aceita: 'image/*' },
+  domainpack: { nome: 'Domain Pack', icon: 'box', classe: 'funcional', desc: 'Fatos já autenticados para reaproveitar', rotulo: 'fatos', vel: 3, confianca: 0.98, classif: 'fato',
+    campos: [{ k: 'pack', l: 'Pack', tipo: 'select', ops: ['garantias-imobiliario', 'garantias-veiculos', 'credito-contratos'], req: true }, { k: 'versao', l: 'Versão', ph: '1.0.3' }] },
+};
+
+DIF.mock = (() => {
+  const U = DIF.util;
+  /* Modelos de regra fictícios. ev = evidência por tipo de fonte: [arquivo, linha/seção, trecho]. */
+  const MODELOS = [
+    { e: 'garantia', o: 'inclusao', t: 'validacao', c: 'valor_avaliacao', x: 'O valor de avaliação deve ser maior ou igual a R$ 1.000,00.',
+      ev: { codigo: ['GarantiaImobiliariaRequest.java', 14, '@DecimalMin("1000.00")'], documento: ['NG-IMO-01.pdf', '§3.2', 'O valor de avaliação mínimo aceito é de R$ 1.000,00.'], domainpack: ['fatos.json', 'FN-GAR-001', 'minimo: 1000.0'] } },
+    { e: 'garantia', o: 'inclusao', t: 'validacao', c: 'matricula_imovel', x: 'A matrícula do imóvel deve ter de 6 a 10 dígitos numéricos.',
+      ev: { codigo: ['GarantiaImobiliariaRequest.java', 11, '@Pattern(regexp = "\\\\d{6,10}")'], api: ['openapi.json', '#/NovaGarantia/matricula_imovel', '"pattern": "^\\\\d{6,10}$"'] } },
+    { e: 'garantia', o: 'inclusao', t: 'validacao', c: 'cpf_cnpj_proprietario', x: 'O CPF/CNPJ do proprietário deve ter dígito verificador válido.',
+      ev: { codigo: ['DocumentoValidator.java', 27, 'if (!Dv.valido(documento)) throw new DocumentoInvalido();'], imagem: ['tela-inclusao-02.png', 'campo CPF/CNPJ', 'Mensagem "Documento inválido" ao informar 529.982.247-26'] } },
+    { e: 'garantia', o: 'inclusao', t: 'validacao', c: 'data_avaliacao', x: 'A data de avaliação não pode ser futura.',
+      ev: { codigo: ['GarantiaImobiliariaRequest.java', 19, '@PastOrPresent'], documento: ['NG-IMO-01.pdf', '§3.3', 'A avaliação deve ter sido realizada até a data da inclusão.'] } },
+    { e: 'garantia', o: 'inclusao', t: 'validacao', c: 'data_avaliacao', x: 'Validade máxima do laudo de avaliação na data da inclusão.',
+      ev: { documento: ['NG-IMO-01.pdf', '§3.3.1', 'Laudos com mais de 12 meses não são aceitos.'], codigo: ['GAREX02.cbl', 188, 'IF WS-DT-AVALIACAO > WS-DT-ATUAL  *> sem verificação de validade'] },
+      cf: { d: 'Validade máxima do laudo de avaliação', v: { documento: 'Até 12 meses', codigo: 'Sem limite (só não pode ser futura)' } } },
+    { e: 'garantia', o: 'inclusao', t: 'estado', c: 'situacao', x: 'Toda garantia incluída nasce ativa e sem vínculo com contrato.',
+      ev: { documento: ['NG-IMO-01.pdf', '§3.1', 'A garantia incluída fica ativa e disponível para associação.'], codigo: ['GAREX01.cbl', 96, "MOVE 'A' TO GAR-SITUACAO"] } },
+    { e: 'garantia', o: 'inclusao', t: 'dominio', c: 'tipo', x: "O tipo da garantia imobiliária é sempre 'IMO'.",
+      ev: { codigo: ['CPGAR10.cpy', 8, "88 GAR-TIPO-IMOVEL VALUE 'IMO'."], banco: ['GAR.GARANTIA', 'CK_GARANTIA_TIPO', "CHECK (TIPO IN ('IMO'))"] } },
+    { e: 'garantia', o: 'inclusao', t: 'calculo', c: 'valor_avaliacao', x: 'Cobertura mínima: o valor de avaliação deve cobrir um percentual do saldo devedor do contrato.',
+      ev: { codigo: ['GAREX01.cbl', 412, 'IF WS-VLR-GARANTIA < WS-SALDO-DEV * 1,20'], documento: ['NG-IMO-01.pdf', '§3.4', 'A cobertura mínima é de 130% do saldo devedor.'] },
+      cf: { d: 'Percentual de cobertura mínima', v: { codigo: '120% do saldo devedor', documento: '130% do saldo devedor' } } },
+    { e: 'garantia', o: 'associacao', t: 'estado', c: null, x: 'Somente garantia ativa pode ser associada a um contrato.',
+      ev: { codigo: ['GarantiaService.java', 88, 'if (g.situacao() != ATIVA) throw new GarantiaNaoAtiva();'], documento: ['NG-IMO-01.pdf', '§4.1', 'A associação exige garantia ativa.'] } },
+    { e: 'garantia', o: 'associacao', t: 'dependencia', c: 'id_contrato', x: 'A associação exige contrato ativo.',
+      ev: { codigo: ['GarantiaService.java', 92, 'if (!contrato.ativo()) throw new ContratoNaoAtivo();'], documento: ['NG-IMO-01.pdf', '§4.1', 'A associação exige contrato ativo.'], mcp: ['credito.contrato', 'recurso', 'situacao = A exigida pelo serviço de associação'] } },
+    { e: 'garantia', o: 'associacao', t: 'estado', c: null, x: 'Uma garantia não pode ter mais de um vínculo vigente ao mesmo tempo.',
+      ev: { banco: ['GAR.GARANTIA_CONTRATO', 'UX_VINCULO_VIGENTE', "UNIQUE (ID_GARANTIA) WHERE SITUACAO = 'V'"], codigo: ['GarantiaService.java', 95, 'if (vinculoVigente(g).isPresent()) throw new JaAssociada();'] } },
+    { e: 'garantia', o: 'bloqueio', t: 'dominio', c: 'motivo_bloqueio', x: 'Motivos permitidos para o bloqueio de garantia.',
+      ev: { codigo: ['BloqueioRequest.java', 7, 'enum MotivoBloqueio { JUD, ADM, FRA }'], documento: ['NG-IMO-01.pdf', '§5.1', 'O bloqueio só ocorre por determinação judicial (JUD) ou administrativa (ADM).'], banco: ['GAR.GARANTIA', 'CK_GARANTIA_MOTIVO', "CHECK (MOTIVO_BLOQUEIO IN ('JUD','ADM','FRA'))"] },
+      cf: { d: 'Domínio do motivo de bloqueio', v: { codigo: 'JUD, ADM, FRA', documento: 'JUD, ADM' } } },
+    { e: 'garantia', o: 'bloqueio', t: 'estado', c: null, x: 'Somente garantia ativa e associada a contrato pode ser bloqueada.',
+      ev: { documento: ['NG-IMO-01.pdf', '§5.2', 'Somente garantia ativa e associada pode ser bloqueada.'], codigo: ['GAREX03.cbl', 140, 'IF GAR-ATIVA AND WS-VINCULO-VIGENTE'], domainpack: ['fatos.json', 'FN-GAR-003', 'regra_negocio · bloqueio'] } },
+    { e: 'garantia', o: 'bloqueio', t: 'estado', c: null, x: 'Garantia já bloqueada não pode ser bloqueada novamente.',
+      ev: { codigo: ['GAREX03.cbl', 132, 'IF GAR-BLOQUEADA PERFORM 9100-ERRO-JA-BLOQUEADA'], api: ['openapi.json', 'POST /garantias/{id}/bloqueios', '409 · garantia já bloqueada'] } },
+    { e: 'garantia', o: 'bloqueio', t: 'estado', c: 'situacao', x: 'O bloqueio é processado de forma assíncrona e efetivado em até 6 segundos.',
+      ev: { mcp: ['fila GAR.EVENTOS', 'consumidor bloqueio-worker', 'SLA de processamento: 6s'], api: ['openapi.json', 'POST /garantias/{id}/bloqueios', '202 Accepted · bloqueio_em_processamento'] } },
+    { e: 'garantia', o: 'bloqueio', t: 'dependencia', c: null, x: 'O bloqueio judicial publica um evento na fila GAR.EVENTOS.',
+      ev: { mcp: ['fila GAR.EVENTOS', 'produtor GAREX03', 'evento GARANTIA_BLOQUEADA'], imagem: ['fluxo-bloqueio.png', 'diagrama', 'Seta "publica evento" entre Bloqueio e Fila'] } },
+    { e: 'garantia', o: 'bloqueio', t: 'dependencia', c: null, x: 'O bloqueio exige aprovação de um segundo operador.',
+      ev: { imagem: ['fluxo-bloqueio.png', 'raia "Aprovação"', 'Etapa "2º operador aprova" desenhada no fluxo'] } },
+    { e: 'garantia', o: 'desassociacao', t: 'estado', c: null, x: 'Garantia bloqueada não pode ser desassociada do contrato.',
+      ev: { documento: ['NG-IMO-01.pdf', '§4.3', 'Garantia bloqueada não pode ser desassociada.'], codigo: ['GarantiaService.java', 131, 'if (g.bloqueada()) throw new GarantiaBloqueada();'], domainpack: ['fatos.json', 'FN-GAR-007', 'regra_negocio · desassociação'] } },
+    { e: 'garantia', o: 'desassociacao', t: 'dependencia', c: 'id_contrato', x: 'A desassociação exige vínculo vigente com o contrato informado.',
+      ev: { codigo: ['GarantiaService.java', 127, 'vinculo = vinculoVigente(g, contrato).orElseThrow();'] } },
+    { e: 'garantia', o: 'exclusao', t: 'estado', c: null, x: 'Garantia associada a contrato vigente não pode ser excluída.',
+      ev: { documento: ['NG-IMO-01.pdf', '§6.1', 'Garantia associada a contrato vigente não pode ser excluída.'], codigo: ['GAREX04.cbl', 77, 'IF WS-VINCULO-VIGENTE PERFORM 9200-ERRO-ASSOCIADA'], domainpack: ['fatos.json', 'FN-GAR-004', 'regra_negocio · exclusão'] } },
+    { e: 'garantia', o: 'exclusao', t: 'estado', c: 'situacao', x: "A exclusão é lógica: a situação passa para 'E' e o registro é mantido.",
+      ev: { banco: ['GAR.GARANTIA', 'CK_GARANTIA_SITUACAO', "CHECK (SITUACAO IN ('A','B','E'))"], codigo: ['GAREX04.cbl', 90, "MOVE 'E' TO GAR-SITUACAO"] } },
+    { e: 'garantia', o: 'exclusao', t: 'dependencia', c: null, x: 'Toda exclusão grava trilha de auditoria com usuário e data.',
+      ev: { documento: ['NG-IMO-01.pdf', '§6.3', 'Exclusões devem registrar usuário, data e motivo.'], mcp: ['tabela GAR.AUDITORIA', 'recurso', 'INSERT por trigger TG_GAR_AUDIT'] } },
+    { e: 'garantia', o: 'consulta', t: 'validacao', c: null, x: 'A consulta de garantia devolve o contrato vigente quando houver vínculo.',
+      ev: { api: ['openapi.json', 'GET /garantias/{id}', 'id_contrato_vigente: integer | null'] } },
+    { e: 'garantia', o: 'inclusao', t: 'validacao', c: null, x: "A tela de inclusão só habilita 'Confirmar' com os quatro campos obrigatórios preenchidos.",
+      ev: { imagem: ['tela-inclusao-01.png', 'botão Confirmar', 'Botão desabilitado com campos vazios'] } },
+    { e: 'contrato', o: 'consulta', t: 'dominio', c: 'situacao', x: 'Situação do contrato: A (ativo), L (liquidado) ou C (cancelado).',
+      ev: { banco: ['CRE.CONTRATO', 'CK_CONTRATO_SITUACAO', "CHECK (SITUACAO IN ('A','L','C'))"], mcp: ['credito.contrato', 'schema', 'situacao: enum A | L | C'] } },
+    { e: 'contrato', o: 'inclusao', t: 'validacao', c: 'valor', x: 'O valor do contrato deve ser positivo, com duas casas decimais.',
+      ev: { api: ['openapi.json', '#/NovoContrato/valor', '"exclusiveMinimum": 0'], banco: ['CRE.CONTRATO', 'VALOR', 'DECIMAL(15,2) NOT NULL'] } },
+    { e: 'contrato', o: 'inclusao', t: 'validacao', c: 'numero', x: 'O número do contrato é único e tem até 20 caracteres.',
+      ev: { banco: ['CRE.CONTRATO', 'UX_CONTRATO_NUMERO', 'UNIQUE (NUMERO) · VARCHAR(20)'] } },
+    { e: 'contrato', o: 'associacao', t: 'estado', c: null, x: 'Contrato liquidado ou cancelado não aceita novas garantias.',
+      ev: { documento: ['NG-IMO-01.pdf', '§4.2', 'Contratos liquidados ou cancelados não recebem novas garantias.'] } },
+    { e: 'contrato', o: 'associacao', t: 'dependencia', c: null, x: 'Um contrato pode ter várias garantias vigentes.',
+      ev: { banco: ['GAR.GARANTIA_CONTRATO', 'FK_VINCULO_CONTRATO', 'N vínculos por ID_CONTRATO'], documento: ['NG-IMO-01.pdf', '§4.4', 'Um contrato pode ser garantido por mais de um imóvel.'] } },
+    { e: 'vinculo', o: 'associacao', t: 'dominio', c: 'situacao', x: 'Situação do vínculo: V (vigente) ou D (desassociado).',
+      ev: { banco: ['GAR.GARANTIA_CONTRATO', 'CK_VINCULO_SITUACAO', "CHECK (SITUACAO IN ('V','D'))"] } },
+    { e: 'vinculo', o: 'desassociacao', t: 'estado', c: 'situacao', x: 'A desassociação encerra o vínculo (V → D) sem apagar o histórico.',
+      ev: { banco: ['GAR.GARANTIA_CONTRATO', 'SITUACAO', "UPDATE ... SET SITUACAO = 'D'"], documento: ['NG-IMO-01.pdf', '§4.3', 'O vínculo encerrado permanece para consulta histórica.'] } },
+  ];
+
+  /* Campos (copybook + tabela) que geram regras de obrigatoriedade e de tamanho. */
+  const CAMPOS = [
+    ['garantia', 'matricula_imovel', 'Matrícula do imóvel', 'GAR-MATRICULA', 'X(20)', 'MATRICULA_IMOVEL', 'VARCHAR(20)', 20, true, true],
+    ['garantia', 'valor_avaliacao', 'Valor de avaliação', 'GAR-VLR-AVALIACAO', 'S9(13)V99 COMP-3', 'VALOR_AVALIACAO', 'DECIMAL(15,2)', 15, true, true],
+    ['garantia', 'cpf_cnpj_proprietario', 'CPF/CNPJ do proprietário', 'GAR-CPF-CNPJ', 'X(14)', 'CPF_CNPJ_PROPRIETARIO', 'VARCHAR(14)', 14, true, true],
+    ['garantia', 'data_avaliacao', 'Data de avaliação', 'GAR-DT-AVALIACAO', 'X(10)', 'DATA_AVALIACAO', 'DATE', 10, true, true],
+    ['garantia', 'situacao', 'Situação da garantia', 'GAR-SITUACAO', 'X(01)', 'SITUACAO', 'CHAR(1)', 1, true, false],
+    ['garantia', 'motivo_bloqueio', 'Motivo do bloqueio', 'GAR-MOTIVO-BLOQ', 'X(03)', 'MOTIVO_BLOQUEIO', 'CHAR(3)', 3, false, false],
+    ['garantia', 'tipo', 'Tipo da garantia', 'GAR-TIPO', 'X(03)', 'TIPO', 'CHAR(3)', 3, true, false],
+    ['garantia', 'data_bloqueio', 'Data do bloqueio', 'GAR-DT-BLOQUEIO', 'X(10)', 'DATA_BLOQUEIO', 'DATE', 10, false, false],
+    ['garantia', 'usuario_inclusao', 'Usuário da inclusão', 'GAR-USR-INCL', 'X(08)', 'USUARIO_INCLUSAO', 'CHAR(8)', 8, true, false],
+    ['garantia', 'observacao', 'Observação', 'GAR-OBSERVACAO', 'X(200)', 'OBSERVACAO', 'VARCHAR(200)', 200, false, false],
+    ['contrato', 'numero', 'Número do contrato', 'CTR-NUMERO', 'X(20)', 'NUMERO', 'VARCHAR(20)', 20, true, true],
+    ['contrato', 'cpf_cnpj_cliente', 'CPF/CNPJ do cliente', 'CTR-CPF-CNPJ', 'X(14)', 'CPF_CNPJ_CLIENTE', 'VARCHAR(14)', 14, true, true],
+    ['contrato', 'valor', 'Valor do contrato', 'CTR-VALOR', 'S9(13)V99 COMP-3', 'VALOR', 'DECIMAL(15,2)', 15, true, true],
+    ['contrato', 'agencia', 'Agência', 'CTR-AGENCIA', '9(04)', 'AGENCIA', 'SMALLINT', 4, true, false],
+    ['contrato', 'produto', 'Produto', 'CTR-PRODUTO', 'X(06)', 'PRODUTO', 'CHAR(6)', 6, true, false],
+    ['vinculo', 'id_garantia', 'Garantia do vínculo', 'VIN-ID-GAR', '9(09)', 'ID_GARANTIA', 'INTEGER', 9, true, false],
+    ['vinculo', 'id_contrato', 'Contrato do vínculo', 'VIN-ID-CTR', '9(09)', 'ID_CONTRATO', 'INTEGER', 9, true, false],
+    ['vinculo', 'data_vinculo', 'Data do vínculo', 'VIN-DT-VINC', 'X(10)', 'DATA_VINCULO', 'DATE', 10, true, false],
+  ];
+  const COPY = { garantia: 'CPGAR10.cpy', contrato: 'CPCTR01.cpy', vinculo: 'CPVIN01.cpy' };
+  const TAB = { garantia: 'GAR.GARANTIA', contrato: 'CRE.CONTRATO', vinculo: 'GAR.GARANTIA_CONTRATO' };
+
+  function modelosCompletos() {
+    const lista = MODELOS.map((m, i) => ({ ...m, id: `R-${U.pad(i + 1, 4)}` }));
+    CAMPOS.forEach(([e, c, rot, cob, pic, col, sql, tam, obrig, api], i) => {
+      if (obrig) {
+        const ev = { banco: [TAB[e], col, `${col} ${sql} NOT NULL`] };
+        if (api) ev.api = ['openapi.json', `#/${e === 'garantia' ? 'NovaGarantia' : 'NovoContrato'}/required`, `"required": [..., "${c}"]`];
+        lista.push({ id: `R-${U.pad(101 + i * 2, 4)}`, e, o: 'inclusao', t: 'validacao', c, x: `O campo "${rot}" é obrigatório.`, ev });
+      }
+      lista.push({ id: `R-${U.pad(102 + i * 2, 4)}`, e, o: 'inclusao', t: 'validacao', c, x: `O campo "${rot}" aceita até ${tam} posições.`,
+        ev: { codigo: [COPY[e], 6 + i * 2, `05 ${cob.padEnd(20)} PIC ${pic}.`], banco: [TAB[e], col, sql] } });
+    });
+    return lista;
+  }
+
+  /** Constrói as regras que o levantamento encontraria nas fontes informadas (sem status). */
+  function construirRegras(fontes) {
+    const porTipo = U.groupBy(fontes, f => f.tipo);
+    const regras = [];
+    for (const m of modelosCompletos()) {
+      const evidencias = [], versoes = [];
+      for (const [tipo, [arquivo, linha, trecho]] of Object.entries(m.ev)) {
+        for (const f of porTipo[tipo] || []) {
+          const ev = { fonteId: f.id, fonteNome: f.nome, tipo, arquivo, linha: String(linha), trecho, versao: f.versao };
+          evidencias.push(ev);
+          if (m.cf && m.cf.v[tipo]) versoes.push({ fonteId: f.id, fonteNome: f.nome, tipo, valor: m.cf.v[tipo], trecho, referencia: `${arquivo} · ${linha}` });
+        }
+      }
+      if (!evidencias.length) continue;
+      regras.push({ id: m.id, entidade: m.e, operacao: m.o, tipo: m.t, campo: m.c, enunciado: m.x, evidencias,
+        conflito: m.cf ? { descricao: m.cf.d, versoes, resolucao: null, divergencia: false } : null });
+    }
+    return regras;
+  }
+
+  function seed() {
+    const agora = Date.now(), dia = 864e5, rnd = U.prng(20261126);
+    const fontes = [
+      { id: 'F-01', tipo: 'codigo', nome: 'gran-core', detalhe: 'git.interno/garantias/gran-core · main', versao: 'commit a3f9c21', preview: 1284 },
+      { id: 'F-02', tipo: 'banco', nome: 'DB2 HML · GARANTIAS', detalhe: 'schema GAR · 14 tabelas', versao: 'HML 2026-11-20', preview: 14 },
+      { id: 'F-03', tipo: 'api', nome: 'garantias-api', detalhe: 'api.hml.interno/garantias/v1/openapi.json', versao: 'v1.4.2', preview: 23 },
+      { id: 'F-04', tipo: 'mcp', nome: 'mcp-garantias (HML)', detalhe: 'programas, jobs, filas', versao: 'servidor 0.9.3', preview: 9 },
+      { id: 'F-05', tipo: 'documento', nome: 'NG-IMO-01 · Normativo de garantia imobiliária', detalhe: '1 arquivo · 48 páginas', versao: 'rev. 2025-10', preview: 48 },
+      { id: 'F-06', tipo: 'imagem', nome: 'Prints e fluxos da comercialização', detalhe: '12 imagens', versao: 'jun/2026', preview: 12 },
+      { id: 'F-07', tipo: 'domainpack', nome: 'garantias-imobiliario', detalhe: 'Domain Pack · 41 fatos', versao: '1.0.3', preview: 41 },
+      { id: 'F-08', tipo: 'codigo', nome: 'limites-core', detalhe: 'git.interno/limites/limites-core · main', versao: 'commit 7be01d4', preview: 860 },
+      { id: 'F-09', tipo: 'documento', nome: 'Manual de alçadas de limite', detalhe: '2 arquivos · 31 páginas', versao: 'rev. 2026-03', preview: 31 },
+    ].map(f => ({ ...f, status: 'conectada', testadoEm: agora - 2 * dia, criadaEm: agora - 10 * dia, config: {} }));
+
+    const d1 = novaDescoberta('D-001', 'Comercialização · Garantia imobiliária', 'Inclusão, associação, bloqueio, desassociação e exclusão de garantia imobiliária na comercialização.', 'Garantias', agora - 4 * dia);
+    d1.fontes = ['F-01', 'F-02', 'F-03', 'F-04', 'F-05', 'F-06'];
+    const construidas = construirRegras(fontes.filter(f => d1.fontes.includes(f.id)));
+    for (const b of construidas) {
+      const r = materializar(d1, b, agora - 3 * dia, 'Levantamento automático');
+      r.evidencias = b.evidencias;
+      if (r.conflito) r.conflito.versoes = b.conflito.versoes;
+      DIF.regras.recalcular(r);
+      d1.regras.push(r);
+    }
+    d1.extracao = { status: 'concluido', inicio: agora - 3 * dia, fim: agora - 3 * dia + 42000, porFonte: {} };
+    for (const id of d1.fontes) {
+      const total = construidas.reduce((s, r) => s + r.evidencias.filter(e => e.fonteId === id).length, 0);
+      d1.extracao.porFonte[id] = { total, feitos: total, status: 'concluido' };
+    }
+    // decisões já tomadas (fictícias) para a demo
+    const revisores = ['M. Costa', 'R. Almeida'];
+    d1.regras.forEach(r => {
+      if (DIF.regras.temConflito(r)) return;
+      const x = rnd();
+      const quem = revisores[x < 0.5 ? 0 : 1], quando = agora - dia - Math.round(rnd() * dia);
+      if (x < 0.56) { r.status = 'aprovada'; r.historico.push({ quando, quem, acao: 'Aprovada' }); }
+      else if (x < 0.62) { r.status = 'rejeitada'; r.historico.push({ quando, quem, acao: 'Rejeitada', motivo: 'Duplicada' }); }
+      else if (x < 0.67) { r.status = 'revisao'; r.historico.push({ quando, quem, acao: 'Devolvida para revisão', motivo: 'Confirmar com o especialista do produto.' }); }
+    });
+    const manual = materializar(d1, { id: 'M-0001', entidade: 'garantia', operacao: 'bloqueio', tipo: 'estado', campo: null, enunciado: 'Bloqueio por determinação judicial não pode ser desfeito pela operação comercial.', evidencias: [], conflito: null }, agora - 2 * dia, 'M. Costa');
+    manual.origem = 'manual';
+    manual.historico[0].acao = 'Cadastrada manualmente';
+    DIF.regras.recalcular(manual);
+    d1.regras.push(manual);
+    // versão 1 dos pacotes, gerada antes das aprovações mais recentes
+    const aprovadas = d1.regras.filter(r => r.status === 'aprovada');
+    DIF.pacotes.gerar(d1, aprovadas.slice(0, Math.round(aprovadas.length * 0.7)), agora - dia, 'M. Costa');
+    d1.versoes[0].status = 'publicado'; d1.versoes[0].publicadoEm = agora - dia + 3600e3;
+
+    const d2 = novaDescoberta('D-002', 'Bloqueio judicial em lote', 'Bloqueio de várias garantias a partir de uma única ordem judicial, com rastreabilidade por processo.', 'Garantias', agora - dia);
+    d2.fontes = ['F-01', 'F-07'];
+    const d3 = novaDescoberta('D-003', 'Revisão de alçadas de limite', 'Mapear as regras de alçada para aprovação de limites por perfil de cliente.', 'Limites', agora - 3600e3 * 5);
+
+    return { versao: 1, meta: { salvoEm: agora }, seq: { d: 3, f: 9, m: 1 }, fontes, descobertas: [d1, d2, d3] };
+  }
+
+  function novaDescoberta(id, nome, demanda, cluster, criadaEm = Date.now()) {
+    return { id, nome, demanda, cluster, criadaEm, fontes: [], regras: [], versoes: [], extracao: { status: 'nao_iniciado', porFonte: {} } };
+  }
+
+  function materializar(d, base, quando, quem) {
+    return { ...U.clone(base), did: d.id, key: `${d.id}:${base.id}`, evidencias: [], status: 'pendente', origem: 'auto',
+      conflito: base.conflito ? { descricao: base.conflito.descricao, versoes: [], resolucao: null, divergencia: false } : null,
+      classificacao: 'hipotese', confianca: 0.5, fonteClasse: 'funcional', criadaEm: quando,
+      historico: [{ quando, quem, acao: 'Extraída' }] };
+  }
+
+  return { construirRegras, seed, novaDescoberta, materializar };
+})();
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/core/store.js — estado persistido (salvamento automático)
+   ========================================================================== */
+DIF.store = (() => {
+  let state = null;
+  const key = DIF.config.storageKey;
+  return {
+    get state() { return state; },
+    load() {
+      try { const raw = localStorage.getItem(key); if (raw) state = JSON.parse(raw); } catch (e) { state = null; }
+      if (!state || state.versao !== 1) { state = DIF.mock.seed(); this.save(); }
+      state.descobertas.forEach(d => { if (d.extracao.status === 'executando') d.extracao.status = 'pausado'; });
+    },
+    save() {
+      state.meta.salvoEm = Date.now();
+      try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) { /* modo privado ou cota: segue em memória */ }
+    },
+    reset() { state = DIF.mock.seed(); this.save(); },
+    commit(fn) { const r = fn(state); this.save(); return r; },
+    descoberta(id) { return state.descobertas.find(d => d.id === id); },
+    fonte(id) { return state.fontes.find(f => f.id === id); },
+    regra(key) { const [did] = String(key).split(':'); const d = this.descoberta(did); return d && d.regras.find(r => r.key === key); },
+    todasRegras() { return state.descobertas.flatMap(d => d.regras); },
+    todasVersoes() { return state.descobertas.flatMap(d => d.versoes.map(v => ({ d, v }))); },
+  };
+})();
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/core/router.js — rotas por hash
+     #/descobertas  #/fontes  #/regras  #/pacotes  #/d/<id>/<etapa>
+   ========================================================================== */
+DIF.router = {
+  parse() {
+    const p = (location.hash.replace(/^#\/?/, '') || 'descobertas').split('/');
+    if (p[0] === 'd' && p[1]) return { view: 'etapa', id: p[1], etapa: p[2] || 'fontes' };
+    return { view: ['descobertas', 'fontes', 'regras', 'pacotes'].includes(p[0]) ? p[0] : 'descobertas' };
+  },
+  go(path) { location.hash = '#/' + path; },
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/domain/regras.js — regras de negócio da validação
+   ========================================================================== */
+DIF.regras = (() => {
+  const C = DIF.config;
+  const RANK = { fato: 3, interpretacao: 2, hipotese: 1 };
+  const api = {
+    temConflito: r => !!(r.conflito && r.conflito.versoes.length > 1 && r.conflito.resolucao == null),
+    semEvidencia: r => !r.evidencias.length,
+    vigente: r => (r.conflito && r.conflito.resolucao != null ? r.conflito.versoes[r.conflito.resolucao] : null),
+    fontePrincipal: r => (r.evidencias[0] ? r.evidencias[0].fonteNome : 'Cadastro manual'),
+    /** Classificação e confiança derivam das evidências: código/banco/API = fato; documento = interpretação; imagem = hipótese. */
+    recalcular(r) {
+      if (!r.evidencias.length) { r.classificacao = 'hipotese'; r.confianca = r.origem === 'manual' ? 0.5 : 0.4; r.fonteClasse = r.fonteClasse || 'funcional'; return r; }
+      const tipos = r.evidencias.map(e => DIF.sourceTypes[e.tipo]);
+      let melhor = tipos.reduce((a, t) => (RANK[t.classif] > RANK[a] ? t.classif : a), 'hipotese');
+      if (api.vigente(r)) melhor = 'fato';
+      r.classificacao = melhor;
+      r.confianca = Math.min(0.99, Math.max(...tipos.map(t => t.confianca)) + 0.02 * (tipos.length - 1));
+      const classes = new Set(tipos.map(t => t.classe));
+      r.fonteClasse = classes.size > 1 ? 'ambas' : [...classes][0];
+      return r;
+    },
+    hist(r, acao, motivo, quem = C.usuario) { r.historico.push({ quando: Date.now(), quem, acao, motivo: motivo || undefined }); },
+    aprovar(r) {
+      if (api.temConflito(r)) return false;
+      if (r.status === 'aprovada') return true;
+      r.status = 'aprovada'; api.hist(r, 'Aprovada'); return true;
+    },
+    rejeitar(r, motivo) { if (r.status === 'rejeitada') return; r.status = 'rejeitada'; api.hist(r, 'Rejeitada', motivo); },
+    devolver(r, motivo) { r.status = 'revisao'; api.hist(r, 'Devolvida para revisão', motivo); },
+    totais(rs) {
+      const t = { total: rs.length, pendentes: 0, aprovadas: 0, rejeitadas: 0, revisao: 0, conflitos: 0, semEvid: 0 };
+      for (const r of rs) {
+        if (r.status === 'aprovada') t.aprovadas++; else if (r.status === 'rejeitada') t.rejeitadas++; else { t.pendentes++; if (r.status === 'revisao') t.revisao++; }
+        if (api.temConflito(r)) t.conflitos++;
+        if (!r.evidencias.length) t.semEvid++;
+      }
+      return t;
+    },
+    filtrar(rs, st) {
+      const q = st.q.trim().toLowerCase(), f = st.f;
+      return rs.filter(r => {
+        if (st.flag === 'pendente' && !(r.status === 'pendente' || r.status === 'revisao')) return false;
+        if ((st.flag === 'aprovada' || st.flag === 'rejeitada') && r.status !== st.flag) return false;
+        if (st.flag === 'conflito' && !api.temConflito(r)) return false;
+        if (st.flag === 'semevid' && r.evidencias.length) return false;
+        if (f.status && r.status !== f.status) return false;
+        if (f.tipo && r.tipo !== f.tipo) return false;
+        if (f.entidade && r.entidade !== f.entidade) return false;
+        if (f.operacao && r.operacao !== f.operacao) return false;
+        if (f.origem && r.origem !== f.origem) return false;
+        if (f.classificacao && r.classificacao !== f.classificacao) return false;
+        if (f.fonte && !r.evidencias.some(e => e.fonteId === f.fonte)) return false;
+        if (f.descoberta && r.did !== f.descoberta) return false;
+        if (q && !`${r.id} ${r.enunciado} ${r.campo || ''} ${C.entidades[r.entidade] || ''}`.toLowerCase().includes(q)) return false;
+        return true;
+      });
+    },
+    grupo(r, g) {
+      switch (g) {
+        case 'entidade': return C.entidades[r.entidade] || r.entidade;
+        case 'operacao': return C.operacoes[r.operacao] || r.operacao;
+        case 'tipo': return C.tiposRegra[r.tipo] || r.tipo;
+        case 'fonte': return api.fontePrincipal(r);
+        case 'status': return api.temConflito(r) ? 'Em conflito' : C.status[r.status];
+        case 'classificacao': return C.classificacoes[r.classificacao];
+        default: return '';
+      }
+    },
+    prioridade: r => (api.temConflito(r) ? 0 : { revisao: 1, pendente: 2, aprovada: 3, rejeitada: 4 }[r.status]),
+    ordenar(rs, g) {
+      return [...rs].sort((a, b) => {
+        const ga = api.grupo(a, g), gb = api.grupo(b, g);
+        if (ga !== gb) return ga.localeCompare(gb, 'pt-BR');
+        return api.prioridade(a) - api.prioridade(b) || a.id.localeCompare(b.id);
+      });
+    },
+    relacionadas(r) {
+      const d = DIF.store.descoberta(r.did);
+      return d.regras.filter(x => x !== r && x.entidade === r.entidade && (r.campo ? x.campo === r.campo : x.operacao === r.operacao)).slice(0, 4);
+    },
+  };
+  return api;
+})();
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/domain/fluxo.js — disponibilidade e conclusão das etapas
+   ========================================================================== */
+DIF.fluxo = {
+  disponivel(d, etapa) {
+    switch (etapa) {
+      case 'fontes': return true;
+      case 'levantamento': return d.fontes.length > 0;
+      case 'validacao': return d.regras.length > 0;
+      case 'pacotes': return d.regras.some(r => r.status === 'aprovada') || d.versoes.length > 0;
+    }
+    return false;
+  },
+  motivo: { levantamento: 'Adicione ao menos uma fonte', validacao: 'Execute o levantamento ou cadastre uma regra', pacotes: 'Aprove ao menos uma regra' },
+  concluida(d, etapa) {
+    const t = DIF.regras.totais(d.regras);
+    switch (etapa) {
+      case 'fontes': return d.fontes.length > 0;
+      case 'levantamento': return d.extracao.status === 'concluido';
+      case 'validacao': return t.total > 0 && t.pendentes === 0 && t.conflitos === 0;
+      case 'pacotes': return d.versoes.length > 0 && t.pendentes === 0;
+    }
+    return false;
+  },
+  atual(d) { return (DIF.config.etapas.find(e => !this.concluida(d, e.id) && this.disponivel(d, e.id)) || DIF.config.etapas[3]).id; },
+  progresso(d) { return DIF.config.etapas.filter(e => this.concluida(d, e.id)).length; },
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/services/extracao.js — levantamento das regras nas fontes
+   Simulado nesta demo. Para integrar: substituir `planejar()` por chamadas ao
+   backend (extratores determinísticos + extração assistida) mantendo `upsert()`.
+   ========================================================================== */
+DIF.extracao = (() => {
+  const filas = {};
+  let timer = null;
+
+  function jaTem(d, it) {
+    const r = d.regras.find(x => x.id === it.regra.id);
+    return !!(r && r.evidencias.some(e => e.fonteId === it.ev.fonteId));
+  }
+
+  function upsert(d, it, novos) {
+    let r = d.regras.find(x => x.id === it.regra.id);
+    if (!r) {
+      r = DIF.mock.materializar(d, it.regra, Date.now(), 'Levantamento automático');
+      r.historico[0].acao = `Extraída de ${it.ev.fonteNome}`;
+      d.regras.push(r); novos.push(r.key);
+    }
+    if (!r.evidencias.some(e => e.fonteId === it.ev.fonteId)) r.evidencias.push(it.ev);
+    if (it.versao && r.conflito && !r.conflito.versoes.some(v => v.fonteId === it.versao.fonteId)) {
+      r.conflito.versoes.push(it.versao);
+      if (r.conflito.versoes.length === 2 && r.status === 'aprovada') { r.status = 'revisao'; DIF.regras.hist(r, 'Conflito detectado após aprovação', null, 'Levantamento automático'); }
+    }
+    DIF.regras.recalcular(r);
+  }
+
+  function iniciar(d, somente) {
+    const fontes = d.fontes.map(id => DIF.store.fonte(id)).filter(f => f && f.status === 'conectada' && (!somente || somente.includes(f.id)));
+    if (!fontes.length) { DIF.ui.toast('Nenhuma fonte conectada para levantar regras', 'err'); return; }
+    const finais = DIF.mock.construirRegras(fontes);
+    filas[d.id] = filas[d.id] || {};
+    d.extracao.status = 'executando';
+    d.extracao.inicio = d.extracao.inicio || Date.now();
+    for (const f of fontes) {
+      const itens = [];
+      for (const r of finais) for (const ev of r.evidencias) {
+        if (ev.fonteId !== f.id) continue;
+        const versao = r.conflito ? r.conflito.versoes.find(v => v.fonteId === f.id) : null;
+        itens.push({ regra: { ...r, evidencias: [], conflito: r.conflito ? { descricao: r.conflito.descricao } : null }, ev, versao });
+      }
+      const pend = itens.filter(it => !jaTem(d, it));
+      d.extracao.porFonte[f.id] = { total: itens.length, feitos: itens.length - pend.length, status: pend.length ? 'executando' : 'concluido' };
+      filas[d.id][f.id] = pend;
+    }
+    DIF.store.save();
+    if (!timer) timer = setInterval(tick, 140);
+    DIF.app.render();
+  }
+
+  function tick() {
+    const novos = [];
+    for (const did of Object.keys(filas)) {
+      const d = DIF.store.descoberta(did);
+      if (!d) { delete filas[did]; continue; }
+      if (d.extracao.status !== 'executando') continue;
+      for (const [fid, fila] of Object.entries(filas[did])) {
+        const pf = d.extracao.porFonte[fid];
+        if (!fila.length) { if (pf.status === 'executando') pf.status = 'concluido'; continue; }
+        const vel = (DIF.sourceTypes[(DIF.store.fonte(fid) || {}).tipo] || {}).vel || 1;
+        for (let i = 0; i < vel && fila.length; i++) { upsert(d, fila.shift(), novos); pf.feitos++; }
+        if (!fila.length) pf.status = 'concluido';
+      }
+      if (Object.values(filas[did]).every(f => !f.length)) {
+        d.extracao.status = 'concluido'; d.extracao.fim = Date.now(); delete filas[did];
+        DIF.ui.toast(`Levantamento concluído · ${DIF.util.n(d.regras.length)} regras na descoberta`, 'ok');
+        DIF.store.save(); DIF.app.render(); continue;
+      }
+    }
+    if (!Object.keys(filas).some(did => (DIF.store.descoberta(did) || {}).extracao?.status === 'executando')) { clearInterval(timer); timer = null; }
+    DIF.store.save();
+    DIF.ui.feedNovos = novos;
+    const r = DIF.ui.rota;
+    if (r && r.view === 'etapa' && r.etapa === 'levantamento') DIF.app.renderView();
+  }
+
+  return {
+    iniciar,
+    pausar(d) { d.extracao.status = 'pausado'; DIF.store.save(); DIF.app.render(); },
+    retomar(d) { iniciar(d); },
+    emExecucao: d => d.extracao.status === 'executando',
+    totais(d) {
+      const pf = Object.values(d.extracao.porFonte);
+      return { total: pf.reduce((s, p) => s + p.total, 0), feitos: pf.reduce((s, p) => s + p.feitos, 0) };
+    },
+  };
+})();
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/services/pacotes.js — fatos autenticados, evidências e versões
+   ========================================================================== */
+DIF.pacotes = (() => {
+  const U = DIF.util, C = DIF.config;
+  function fato(r) {
+    const vig = DIF.regras.vigente(r);
+    const ap = [...r.historico].reverse().find(h => h.acao === 'Aprovada');
+    const f = {
+      id: `FN-${r.id}`, regra: r.id, enunciado: r.enunciado, valor_vigente: vig ? vig.valor : null,
+      entidade: r.entidade, operacao: r.operacao, campo: r.campo, tipo: r.tipo,
+      classificacao: r.classificacao, confianca: Math.round(r.confianca * 100) / 100, origem: r.origem,
+      evidencias: r.evidencias.map(e => ({ fonte: e.fonteNome, tipo: e.tipo, referencia: `${e.arquivo} · ${e.linha}`, trecho: U.mask(e.trecho), versao: e.versao })),
+      aprovado_por: ap ? ap.quem : null, aprovado_em: ap ? new Date(ap.quando).toISOString() : null,
+    };
+    f.hash = U.hash(JSON.stringify([f.enunciado, f.valor_vigente, f.evidencias.map(e => e.referencia + e.versao)]));
+    return f;
+  }
+  function diff(prev, pacotes) {
+    if (!prev) return null;
+    const a = new Map(prev.pacotes.flatMap(p => p.fatos).map(f => [f.id, f]));
+    const b = new Map(pacotes.flatMap(p => p.fatos).map(f => [f.id, f]));
+    const lista = (m, fn) => [...m.values()].filter(fn).map(f => ({ id: f.id, enunciado: f.enunciado }));
+    return {
+      adicionados: lista(b, f => !a.has(f.id)),
+      alterados: lista(b, f => a.has(f.id) && a.get(f.id).hash !== f.hash),
+      removidos: lista(a, f => !b.has(f.id)),
+    };
+  }
+  return {
+    /** Prévia das mudanças que a próxima geração traria (null se não houver versão anterior). */
+    previa(d) {
+      const prev = d.versoes[d.versoes.length - 1];
+      if (!prev) return null;
+      const fatos = d.regras.filter(r => r.status === 'aprovada').map(fato);
+      return diff(prev, [{ fatos }]);
+    },
+    bloqueios(d) {
+      const aprovadas = d.regras.filter(r => r.status === 'aprovada');
+      return { conflitos: aprovadas.filter(DIF.regras.temConflito).length, semEvid: aprovadas.filter(DIF.regras.semEvidencia).length, aprovadas: aprovadas.length };
+    },
+    gerar(d, regras, quando = Date.now(), por = C.usuario) {
+      const prev = d.versoes[d.versoes.length - 1];
+      const grupos = U.groupBy(regras, r => r.entidade);
+      const pacotes = Object.keys(grupos).sort().map(ent => {
+        const fatos = grupos[ent].map(fato).sort((x, y) => x.id.localeCompare(y.id));
+        return { id: `pk-${U.slug(d.cluster)}-${ent}`, nome: `${d.cluster} · ${C.entidades[ent] || ent}`, entidade: ent, fatos,
+          evidencias: fatos.reduce((s, f) => s + f.evidencias.length, 0), hash: U.hash(fatos.map(f => f.hash).join('')) };
+      });
+      const v = { n: (prev ? prev.n : 0) + 1, criadoEm: quando, por, status: 'gerado', pacotes,
+        totais: { pacotes: pacotes.length, fatos: pacotes.reduce((s, p) => s + p.fatos.length, 0), evidencias: pacotes.reduce((s, p) => s + p.evidencias, 0) },
+        diff: diff(prev, pacotes) };
+      d.versoes.push(v);
+      return v;
+    },
+    conteudo(d, v, pkId) {
+      const pacotes = pkId ? v.pacotes.filter(p => p.id === pkId) : v.pacotes;
+      return {
+        aviso: 'Conteúdo fictício gerado pela demonstração do DIF.',
+        descoberta: { id: d.id, nome: d.nome, cluster: d.cluster },
+        versao: `${v.n}.0.0`, gerado_em: new Date(v.criadoEm).toISOString(), gerado_por: v.por, status: v.status,
+        pacotes: pacotes.map(p => ({ id: p.id, nome: p.nome, hash: p.hash, fatos: p.fatos })),
+      };
+    },
+  };
+})();
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/ui/components.js — peças reutilizáveis de interface
+   ========================================================================== */
+DIF.ui = {
+  rota: null, drawer: null, modal: null, feedNovos: [], pacoteSel: {}, bibFiltro: '', tabelas: {},
+  esc: DIF.util.esc,
+
+  tbl(scope) {
+    return this.tabelas[scope] ||= { page: 1, size: 15, group: 'entidade', q: '', flag: '', sel: new Set(),
+      f: { status: '', tipo: '', entidade: '', operacao: '', fonte: '', origem: '', classificacao: '', descoberta: '' } };
+  },
+  regrasDoEscopo(scope) {
+    if (scope === 'all') return DIF.store.todasRegras();
+    const d = DIF.store.descoberta(scope.replace(/^d:/, ''));
+    return d ? d.regras : [];
+  },
+
+  toast(msg, tipo = 'ok') {
+    const ic = { ok: 'check', err: 'alert', warn: 'alert', info: 'sparkles' }[tipo] || 'check';
+    const el = document.createElement('div');
+    el.className = `toast ${tipo}`;
+    el.innerHTML = `${DIF.icon(ic, 18)}<span>${DIF.util.esc(msg)}</span>`;
+    document.getElementById('toasts').appendChild(el);
+    setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 320); }, 3600);
+  },
+
+  pageHeader({ n, eyebrow, titulo, sub, acoes = '' }) {
+    return `<div class="ph"><div>
+      <div class="eyebrow">${n ? `<span class="num tnum">${DIF.util.pad(n, 2)}</span>` : ''}<span class="line"></span><span>${eyebrow}</span></div>
+      <h1>${titulo}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${acoes ? `<div class="actions">${acoes}</div>` : ''}</div>`;
+  },
+  empty({ icon = 'sparkles', titulo, texto, acao = '' }) {
+    return `<div class="empty"><div class="ico-box">${DIF.icon(icon, 28)}</div><h3>${titulo}</h3><p>${texto}</p>${acao}</div>`;
+  },
+  badge(txt, cls = 'b-neutral', ic) { return `<span class="badge ${cls}">${ic ? DIF.icon(ic, 13) : ''}${txt}</span>`; },
+  classeBadge(classe) {
+    if (classe === 'tecnica') return this.badge('Técnica', 'b-tech b-sm');
+    if (classe === 'ambas') return this.badge('Técnica + funcional', 'b-dark b-sm');
+    return this.badge('Funcional', 'b-red b-sm');
+  },
+  statusBadge(r) {
+    if (DIF.regras.temConflito(r)) return this.badge('Conflito', 'b-red', 'alert');
+    return { aprovada: this.badge('Aprovada', 'b-ok', 'check'), rejeitada: this.badge('Rejeitada', 'b-neutral', 'x'),
+      revisao: this.badge('Em revisão', 'b-warn', 'undo'), pendente: this.badge('Pendente', 'b-dashed') }[r.status];
+  },
+  classifBadge(r) {
+    const cls = { fato: 'b-tech', interpretacao: 'b-neutral', hipotese: 'b-dashed' }[r.classificacao];
+    return `${this.badge(DIF.config.classificacoes[r.classificacao], cls + ' b-sm')}
+      <div class="conf"><i><b style="width:${Math.round(r.confianca * 100)}%"></b></i><span class="tnum">${Math.round(r.confianca * 100)}%</span></div>`;
+  },
+  fonteStatus(f) {
+    return {
+      conectada: `<span class="status st-ok"><span class="dot"></span>Conectada</span>`,
+      testando: `<span class="status st-run">${DIF.icon('refresh', 14, 'class="ic spin"')}Testando</span>`,
+      erro: `<span class="status st-err"><span class="dot"></span>Falha na conexão</span>`,
+      pendente: `<span class="status st-wait"><span class="dot"></span>Não testada</span>`,
+    }[f.status];
+  },
+  fonteIcone(tipo, cls = '') { const t = DIF.sourceTypes[tipo]; return `<div class="ico-box ${cls}">${DIF.icon(t.icon, 20)}</div>`; },
+  options(map, atual, primeiro) {
+    return (primeiro ? `<option value="">${primeiro}</option>` : '') +
+      Object.entries(map).map(([v, l]) => `<option value="${DIF.util.esc(v)}" ${String(atual) === String(v) ? 'selected' : ''}>${DIF.util.esc(l)}</option>`).join('');
+  },
+
+  /** Arte de rede (nós e conexões) no estilo da abertura do DIF. */
+  rede(w, h, cx, cy, seed, escala = 1) {
+    const rnd = DIF.util.prng(seed), rings = [0, 80, 155, 235, 320], counts = [1, 6, 11, 16, 22], nodes = [];
+    rings.forEach((R, ri) => {
+      const off = rnd() * 6.28;
+      for (let i = 0; i < counts[ri]; i++) {
+        const a = off + (i / counts[ri]) * 6.28 + (rnd() - 0.5) * 0.3, rr = (R + (ri ? (rnd() - 0.5) * 40 : 0)) * escala;
+        nodes.push({ x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr * 0.78, r: ri ? 1.6 + rnd() * 2.6 : 8, hot: ri === 0 || rnd() < 0.16, ri });
+      }
+    });
+    const edges = [];
+    nodes.forEach((a, i) => nodes.map((b, j) => ({ j, d: Math.hypot(a.x - b.x, a.y - b.y) })).filter(o => o.j !== i)
+      .sort((p, q) => p.d - q.d).slice(0, a.ri === 0 ? 6 : 2)
+      .forEach(({ j }) => { if (!edges.some(([p, q]) => (p === i && q === j) || (p === j && q === i))) edges.push([i, j]); }));
+    const f = v => v.toFixed(1);
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs><radialGradient id="glow${seed}"><stop offset="0" stop-color="#CC092F" stop-opacity=".55"/><stop offset="1" stop-color="#CC092F" stop-opacity="0"/></radialGradient></defs>
+      <circle cx="${cx}" cy="${cy}" r="${220 * escala}" fill="url(#glow${seed})" opacity=".6"/>
+      ${rings.slice(1).map((R, i) => `<ellipse cx="${cx}" cy="${cy}" rx="${R * escala}" ry="${R * escala * 0.78}" fill="none" stroke="rgba(255,255,255,.07)" ${i % 2 ? 'stroke-dasharray="2 7"' : ''}/>`).join('')}
+      ${edges.map(([a, b]) => { const A = nodes[a], B = nodes[b], hot = A.hot && B.hot; return `<line class="edge" pathLength="1" x1="${f(A.x)}" y1="${f(A.y)}" x2="${f(B.x)}" y2="${f(B.y)}" stroke="${hot ? '#E31837' : 'rgba(255,255,255,.16)'}" stroke-width="${hot ? 1.4 : 1}" style="animation-delay:${((A.ri + B.ri) * 0.09).toFixed(2)}s"/>`; }).join('')}
+      ${nodes.map(n => `<circle class="node" cx="${f(n.x)}" cy="${f(n.y)}" r="${f(n.r)}" fill="${n.hot ? '#E31837' : n.ri > 2 ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.72)'}" style="animation-delay:${(0.15 + n.ri * 0.12).toFixed(2)}s"/>`).join('')}
+      <circle cx="${cx}" cy="${cy}" r="20" fill="none" stroke="#E31837"><animate attributeName="r" values="14;46" dur="2.6s" repeatCount="indefinite"/><animate attributeName="stroke-opacity" values=".7;0" dur="2.6s" repeatCount="indefinite"/></circle>
+    </svg>`;
+  },
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/views/shell.js — sidebar, topbar, stepper e rodapé do wizard
+   ========================================================================== */
+DIF.views = {};
+DIF.views.sidebar = r => {
+  const S = DIF.store, s = S.state, I = DIF.icon, esc = DIF.util.esc;
+  const did = r.view === 'etapa' ? r.id : DIF.ui.ultimaDescoberta;
+  const d = did && S.descoberta(did);
+  const link = (to, ic, label, count, on) => `<a class="nav-link ${on ? 'on' : ''}" href="#/${to}">${I(ic, 18)}<span>${label}</span>${count != null ? `<span class="count tnum">${DIF.util.n(count)}</span>` : ''}</a>`;
+  let disc = '';
+  if (d) {
+    disc = `<div class="nav-sec">Descoberta aberta</div><div class="nav-disc">
+      <div class="t" title="${esc(d.nome)}">${esc(d.nome)}</div><div class="s">${esc(d.cluster)} · ${DIF.fluxo.progresso(d)} de 4 etapas</div>
+      ${DIF.config.etapas.map(e => {
+        const disp = DIF.fluxo.disponivel(d, e.id), done = DIF.fluxo.concluida(d, e.id), on = r.view === 'etapa' && r.etapa === e.id;
+        return `<a class="nav-step ${on ? 'on' : ''} ${done ? 'done' : ''} ${disp ? '' : 'locked'}" href="#/d/${d.id}/${e.id}"><span class="n">${done ? I('check', 12) : e.n}</span>${e.nome}</a>`;
+      }).join('')}</div>`;
+  }
+  return `<div class="brand"><div class="brand-mark">${I('network', 22)}</div><div><b>Domain Intelligence</b><small>Descoberta de regras</small></div></div>
+    <nav class="nav">
+      <div class="nav-sec">Trabalho</div>
+      ${link('descobertas', 'compass', 'Descobertas', s.descobertas.length, r.view === 'descobertas')}
+      ${disc}
+      <div class="nav-sec">Bases</div>
+      ${link('fontes', 'layers', 'Fontes', s.fontes.length, r.view === 'fontes')}
+      ${link('regras', 'list', 'Regras', S.todasRegras().length, r.view === 'regras')}
+      ${link('pacotes', 'box', 'Pacotes', S.todasVersoes().length, r.view === 'pacotes')}
+    </nav>
+    <div class="side-foot"><div class="avatar">VC</div><div class="who"><b>${esc(DIF.config.usuario)}</b><small>Analista de domínio · dados fictícios</small></div>
+      <button class="icon-btn" data-action="restaurar-demo" data-tip="Restaurar demonstração" aria-label="Restaurar demonstração">${I('refresh', 16)}</button></div>`;
+};
+
+DIF.views.topbar = r => {
+  const I = DIF.icon, esc = DIF.util.esc, S = DIF.store;
+  const nomes = { descobertas: 'Descobertas', fontes: 'Biblioteca de fontes', regras: 'Base de regras', pacotes: 'Pacotes' };
+  let crumbs = `<a href="#/descobertas">${I('home', 15)}</a><span>/</span>`;
+  let stepper = '';
+  if (r.view === 'etapa') {
+    const d = S.descoberta(r.id);
+    if (d) {
+      const et = DIF.config.etapas.find(e => e.id === r.etapa);
+      crumbs += `<a href="#/descobertas">Descobertas</a><span>/</span><a href="#/d/${d.id}/${DIF.fluxo.atual(d)}" style="max-width:340px;overflow:hidden;text-overflow:ellipsis">${esc(d.nome)}</a><span>/</span><b>${et ? et.nome : ''}</b>`;
+      stepper = `<div class="stepper">${DIF.config.etapas.map((e, i) => {
+        const disp = DIF.fluxo.disponivel(d, e.id), done = DIF.fluxo.concluida(d, e.id), on = r.etapa === e.id;
+        const linha = i ? `<div class="step-line"><span style="width:${DIF.fluxo.concluida(d, DIF.config.etapas[i - 1].id) ? 100 : 0}%"></span></div>` : '';
+        const tip = disp ? '' : `data-tip="${DIF.fluxo.motivo[e.id]}"`;
+        return `${linha}<a class="step ${on ? 'on' : ''} ${done ? 'done' : ''} ${disp ? '' : 'locked'}" ${disp ? `href="#/d/${d.id}/${e.id}"` : ''} ${tip}>
+          <span class="n">${done && !on ? I('check', 15) : e.n}</span><span style="min-width:0"><b>${e.nome}</b><small>${e.desc}</small></span></a>`;
+      }).join('')}</div>`;
+    }
+  } else crumbs += `<b>${nomes[r.view]}</b>`;
+  const salvo = S.state.meta.salvoEm;
+  return `<div class="topbar-row"><div class="crumbs">${crumbs}</div>
+    <div class="saved"><span class="dot"></span>Salvo automaticamente · <span class="tnum">${DIF.util.hora(salvo)}</span></div></div>${stepper}`;
+};
+
+DIF.views.rodapeWizard = (d, etapa) => {
+  const E = DIF.config.etapas, i = E.findIndex(e => e.id === etapa), prev = E[i - 1], next = E[i + 1], I = DIF.icon;
+  const t = DIF.regras.totais(d.regras);
+  let hint = '';
+  if (next && !DIF.fluxo.disponivel(d, next.id)) hint = `${I('alert', 14, 'style="vertical-align:-2px"')} ${DIF.fluxo.motivo[next.id]} para continuar`;
+  else if (etapa === 'fontes') hint = `${d.fontes.length} fonte(s) nesta descoberta`;
+  else if (etapa === 'levantamento') hint = d.extracao.status === 'executando' ? 'O levantamento continua em segundo plano se você avançar' : `${DIF.util.n(d.regras.length)} regras levantadas`;
+  else if (etapa === 'validacao') hint = t.pendentes ? `${t.pendentes} regra(s) ainda pendentes não entram no pacote` : 'Todas as regras foram decididas';
+  else if (etapa === 'pacotes') hint = d.versoes.length ? `Versão atual: v${d.versoes[d.versoes.length - 1].n}` : 'Gere a primeira versão dos pacotes';
+  const voltar = prev ? `<a class="btn" href="#/d/${d.id}/${prev.id}">${I('arrowL', 16)}Voltar · ${prev.nome}</a>` : `<a class="btn" href="#/descobertas">${I('arrowL', 16)}Descobertas</a>`;
+  const avancar = next
+    ? `<button class="btn primary lg" data-action="nav" data-to="d/${d.id}/${next.id}" ${DIF.fluxo.disponivel(d, next.id) ? '' : 'disabled'}>Continuar para ${next.nome}${I('arrowR', 16)}</button>`
+    : `<button class="btn dark lg" data-action="concluir-descoberta" data-did="${d.id}">${I('check', 16)}Concluir descoberta</button>`;
+  return `<div class="wfoot">${voltar}<div class="hint">${hint}</div>${avancar}</div>`;
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/views/descobertas.js — página inicial
+   ========================================================================== */
+DIF.views.descobertas = () => {
+  const S = DIF.store, I = DIF.icon, U = DIF.util, ui = DIF.ui, esc = U.esc;
+  const todas = S.todasRegras(), aprov = todas.filter(r => r.status === 'aprovada').length;
+  const fatos = S.todasVersoes().filter(x => x.v.status === 'publicado').reduce((s, x) => s + x.v.totais.fatos, 0);
+  const kpi = (l, v, s, ic) => `<div class="card kpi"><div class="l">${I(ic, 15)}${l}</div><div class="v tnum">${v}</div><div class="s">${s}</div></div>`;
+  const cards = S.state.descobertas.map(d => {
+    const t = DIF.regras.totais(d.regras), atual = DIF.fluxo.atual(d), et = DIF.config.etapas.find(e => e.id === atual);
+    const mini = DIF.config.etapas.map(e => `<i class="${DIF.fluxo.concluida(d, e.id) ? 'done' : e.id === atual ? 'on' : ''}"></i>`).join('');
+    return `<a class="card dcard" href="#/d/${d.id}/${atual}">
+      <div style="display:flex;gap:8px;align-items:center">${ui.badge(esc(d.cluster), 'b-red')}<span class="muted mono" style="font-size:12px">${d.id}</span><span class="muted" style="margin-left:auto;font-size:12px">${U.relativo(d.criadaEm)}</span></div>
+      <div><h3>${esc(d.nome)}</h3><p style="margin-top:6px">${esc(d.demanda)}</p></div>
+      <div class="mini">${mini}</div>
+      <div class="stats"><div><b class="tnum">${d.fontes.length}</b>fontes</div><div><b class="tnum">${t.total}</b>regras</div><div><b class="tnum">${t.aprovadas}</b>aprovadas</div><div><b class="tnum">${d.versoes.length ? 'v' + d.versoes[d.versoes.length - 1].n : '—'}</b>pacote</div></div>
+      <div class="foot"><span class="muted" style="font-size:12.5px">Etapa ${et.n} · ${et.nome}</span><span class="r btn sm dark">Continuar${I('arrowR', 14)}</span></div></a>`;
+  }).join('');
+  return `<section class="hero"><div class="art">${ui.rede(760, 380, 470, 190, 42, 0.95)}</div><div class="fade"></div>
+    <div class="in"><div class="eyebrow"><span class="line"></span>Domain Intelligence Framework · Upstream</div>
+      <h1>Descoberta de <em>regras de domínio</em></h1>
+      <p>Das fontes técnicas e funcionais aos fatos autenticados que tornam qualquer agente especialista no domínio.</p>
+      <div style="display:flex;gap:10px"><button class="btn primary lg" data-action="nova-descoberta">${I('plus', 17)}Nova descoberta</button>
+      <a class="btn on-dark lg" href="#/fontes">${I('layers', 17)}Biblioteca de fontes</a></div>
+      <div class="flow"><span class="c"><i>1</i>Fontes</span>${I('chevR', 14)}<span class="c"><i>2</i>Levantamento</span>${I('chevR', 14)}<span class="c"><i>3</i>Validação</span>${I('chevR', 14)}<span class="c"><i>4</i>Pacotes</span></div>
+    </div></section>
+    <div class="grid g4" style="margin-top:20px">
+      ${kpi('Descobertas', S.state.descobertas.length, 'em andamento ou concluídas', 'compass')}
+      ${kpi('Fontes cadastradas', S.state.fontes.length, `${S.state.fontes.filter(f => DIF.sourceTypes[f.tipo].classe === 'tecnica').length} técnicas · ${S.state.fontes.filter(f => DIF.sourceTypes[f.tipo].classe === 'funcional').length} funcionais`, 'layers')}
+      ${kpi('Regras aprovadas', U.n(aprov), `de ${U.n(todas.length)} levantadas`, 'shield')}
+      ${kpi('Fatos publicados', U.n(fatos), 'em Domain Packs', 'box')}
+    </div>
+    <div class="sec-t"><h2>Descobertas</h2><span class="sub">Retome de onde parou</span></div>
+    <div class="grid g3">${cards}<button class="card dcard dnew" data-action="nova-descoberta"><div>${I('plus', 26)}<div style="font-weight:650;margin-top:8px">Nova descoberta</div><div style="font-size:12.5px;margin-top:4px">Comece pelas fontes da demanda</div></div></button></div>`;
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/views/etapa-fontes.js — Etapa 1
+   ========================================================================== */
+DIF.views.fonteItem = (f, { did, extra = '' } = {}) => {
+  const I = DIF.icon, ui = DIF.ui, t = DIF.sourceTypes[f.tipo], esc = DIF.util.esc;
+  const usadas = DIF.store.state.descobertas.filter(d => d.fontes.includes(f.id)).length;
+  return `<div class="src">${ui.fonteIcone(f.tipo, t.classe === 'funcional' ? 'red' : '')}
+    <div class="meta"><b>${esc(f.nome)}</b><small>${t.nome} · ${esc(f.detalhe || '')}</small>${extra}</div>
+    <div class="badges">${ui.classeBadge(t.classe)}${ui.badge(`<span class="tnum">${DIF.util.n(f.preview)}</span>&nbsp;${t.rotulo}`, 'b-neutral b-sm')}</div>
+    <div style="width:150px;text-align:right">${ui.fonteStatus(f)}<div class="muted" style="font-size:11.5px">${esc(f.versao || '')}</div></div>
+    <div style="display:flex;gap:2px">
+      <button class="icon-btn" data-action="testar-fonte" data-id="${f.id}" data-tip="Testar conexão" aria-label="Testar conexão">${I('refresh', 16)}</button>
+      ${did ? `<button class="icon-btn no" data-action="remover-fonte" data-did="${did}" data-id="${f.id}" data-tip="Remover desta descoberta" aria-label="Remover">${I('trash', 16)}</button>`
+        : `<button class="icon-btn no" data-action="excluir-fonte" data-id="${f.id}" data-tip="${usadas ? `Em uso em ${usadas} descoberta(s)` : 'Excluir da biblioteca'}" aria-label="Excluir" ${usadas ? 'disabled' : ''}>${I('trash', 16)}</button>`}
+    </div></div>`;
+};
+
+DIF.views.etapaFontes = d => {
+  const S = DIF.store, I = DIF.icon, ui = DIF.ui, esc = DIF.util.esc;
+  const fontes = d.fontes.map(id => S.fonte(id)).filter(Boolean);
+  const tec = fontes.filter(f => DIF.sourceTypes[f.tipo].classe === 'tecnica').length, fun = fontes.length - tec;
+  const bib = S.state.fontes.filter(f => !d.fontes.includes(f.id));
+  const tipos = Object.entries(DIF.sourceTypes).map(([k, t]) => `<button class="stype" data-action="abrir-tipo-fonte" data-tipo="${k}" data-did="${d.id}">
+      <span class="plus">${I('plus', 18)}</span><div class="ico-box">${I(t.icon, 20)}</div><div><b>${t.nome}</b><br><small>${t.desc}</small></div>
+      <div>${ui.classeBadge(t.classe)}</div></button>`).join('');
+  const lista = fontes.length ? fontes.map(f => DIF.views.fonteItem(f, { did: d.id })).join('')
+    : `<div class="card">${ui.empty({ icon: 'layers', titulo: 'Nenhuma fonte ainda', texto: 'Adicione repositórios, bancos, contratos de API, servidores MCP, documentos ou imagens. Você pode reaproveitar fontes da biblioteca.' })}</div>`;
+  const chk = (ok, t) => `<div class="check-i ${ok ? 'ok' : ''}"><span class="c">${ok ? I('check', 12) : ''}</span><span>${t}</span></div>`;
+  return `${ui.pageHeader({ n: 1, eyebrow: 'Etapa 1 · Fontes', titulo: 'De onde vamos <em>descobrir as regras</em>?',
+      sub: 'Combine fontes técnicas e funcionais. É o cruzamento entre elas que revela conflitos entre o que o código faz e o que o normativo determina.' })}
+    <div class="split"><div>
+      <div class="sec-t"><h2>Fontes desta descoberta</h2><span class="sub">${fontes.length} conectada(s)</span></div>${lista}
+      <div class="sec-t"><h2>Adicionar nova fonte</h2><span class="sub">Cada tipo tem seu próprio formulário</span></div>
+      <div class="grid g4">${tipos}</div>
+    </div><aside style="display:flex;flex-direction:column;gap:16px;position:sticky;top:170px">
+      <div class="card"><div class="card-h"><h3>Equilíbrio das fontes</h3></div><div class="card-b balance">
+        <div class="row"><span style="width:76px">Técnicas</span><div class="prog"><span style="width:${DIF.util.pct(tec, Math.max(fontes.length, 1))}%;background:var(--tech)"></span></div><b class="tnum">${tec}</b></div>
+        <div class="row"><span style="width:76px">Funcionais</span><div class="prog"><span style="width:${DIF.util.pct(fun, Math.max(fontes.length, 1))}%"></span></div><b class="tnum">${fun}</b></div>
+        <div style="margin-top:4px">${chk(fontes.length > 0, 'Ao menos uma fonte conectada')}${chk(tec > 0, 'Fonte técnica (código, banco, API ou MCP)')}${chk(fun > 0, 'Fonte funcional (normativo, história, imagem)')}</div>
+      </div></div>
+      <div class="card"><div class="card-h"><h3>Da biblioteca</h3><span class="r muted" style="font-size:12px">${bib.length} disponível(is)</span></div><div class="card-b" style="padding-top:8px;padding-bottom:8px">
+        ${bib.length ? bib.map(f => `<div class="lib-i"><div class="ico-box sm">${I(DIF.sourceTypes[f.tipo].icon, 16)}</div><div class="meta"><b>${esc(f.nome)}</b><small>${DIF.sourceTypes[f.tipo].nome}</small></div>
+          <button class="btn sm" data-action="add-fonte-biblioteca" data-did="${d.id}" data-id="${f.id}">${I('plus', 14)}Usar</button></div>`).join('')
+          : '<p class="muted" style="margin:8px 0">Todas as fontes da biblioteca já estão nesta descoberta.</p>'}
+      </div></div></aside></div>`;
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/views/etapa-levantamento.js — Etapa 2
+   ========================================================================== */
+DIF.views.etapaLevantamento = d => {
+  const S = DIF.store, I = DIF.icon, ui = DIF.ui, U = DIF.util, esc = U.esc, X = d.extracao;
+  const fontes = d.fontes.map(id => S.fonte(id)).filter(Boolean);
+  const acoes = `<button class="btn" data-action="nova-regra" data-did="${d.id}">${I('edit', 16)}Cadastrar regra manual</button>`;
+  const header = ui.pageHeader({ n: 2, eyebrow: 'Etapa 2 · Levantamento', titulo: 'Levantar as <em>regras atuais</em> nas fontes',
+    sub: 'Extração determinística para fontes técnicas e extração assistida para documentos e imagens. Você também pode cadastrar regras que só existem no conhecimento do time.', acoes });
+  if (!fontes.length) return header + `<div class="card">${ui.empty({ icon: 'layers', titulo: 'Sem fontes para levantar', texto: 'Volte à etapa 1 e adicione ao menos uma fonte.', acao: `<a class="btn primary" href="#/d/${d.id}/fontes">Ir para Fontes</a>` })}</div>`;
+
+  const tot = DIF.extracao.totais(d), pct = U.pct(tot.feitos, tot.total);
+  const multi = d.regras.filter(r => r.evidencias.length > 1).length, conf = d.regras.filter(DIF.regras.temConflito).length;
+  const manuais = d.regras.filter(r => r.origem === 'manual').length;
+  const novas = fontes.filter(f => !X.porFonte[f.id]).length;
+  let botao;
+  if (X.status === 'nao_iniciado') botao = `<button class="btn primary lg" data-action="iniciar-levantamento" data-did="${d.id}">${I('play', 16)}Iniciar levantamento</button>`;
+  else if (X.status === 'executando') botao = `<button class="btn on-dark lg" data-action="pausar-levantamento" data-did="${d.id}">${I('pause', 16)}Pausar</button>`;
+  else if (X.status === 'pausado') botao = `<button class="btn primary lg" data-action="iniciar-levantamento" data-did="${d.id}">${I('play', 16)}Retomar</button>`;
+  else botao = `<button class="btn on-dark lg" data-action="iniciar-levantamento" data-did="${d.id}">${I('refresh', 16)}${novas ? `Levantar ${novas} fonte(s) nova(s)` : 'Reexecutar'}</button>`;
+  const rotStatus = { nao_iniciado: 'Pronto para iniciar', executando: 'Levantando regras…', pausado: 'Pausado — retome quando quiser', concluido: `Concluído ${X.fim ? U.relativo(X.fim) : ''}` }[X.status];
+
+  const painel = `<div class="run on-dark"><div class="in">
+      <div><div class="pct tnum">${pct}<small>%</small></div><div class="lbl">${rotStatus}</div></div>
+      <div class="counters"><div><b class="tnum">${U.n(d.regras.length)}</b><small>regras</small></div><div><b class="tnum">${multi}</b><small>em várias fontes</small></div>
+        <div><b class="tnum" style="color:${conf ? '#FF8FA5' : '#fff'}">${conf}</b><small>conflitos</small></div><div><b class="tnum">${manuais}</b><small>manuais</small></div></div>${botao}</div>
+    <div class="bar"><div class="prog lg ${X.status === 'executando' ? 'busy' : ''}"><span style="width:${pct}%"></span></div></div></div>`;
+
+  const linhas = fontes.map(f => {
+    const t = DIF.sourceTypes[f.tipo], p = X.porFonte[f.id], pp = p ? U.pct(p.feitos, p.total) : 0;
+    const st = !p ? `<span class="status st-wait"><span class="dot"></span>Aguardando</span>`
+      : p.status === 'concluido' ? `<span class="status st-ok">${I('check', 14)}Concluída</span>`
+      : X.status === 'executando' ? `<span class="status st-run">${I('refresh', 14, 'class="ic spin"')}Extraindo</span>` : `<span class="status st-wait"><span class="dot"></span>Pausada</span>`;
+    const modo = t.classe === 'tecnica' || f.tipo === 'domainpack' ? 'Determinística' : 'Assistida por IA';
+    return `<div class="srun">${ui.fonteIcone(f.tipo, t.classe === 'funcional' ? 'red' : '')}
+      <div class="meta"><b>${esc(f.nome)}</b><small>${t.nome} · ${modo}</small></div>
+      <div><div class="prog ${p && p.status === 'concluido' ? 'ok' : ''}"><span style="width:${pp}%"></span></div><div class="cnt tnum" style="text-align:left;margin-top:6px">${p ? `${p.feitos} de ${p.total} evidências` : 'ainda não levantada'}</div></div>
+      <div>${st}</div>
+      <div style="text-align:right">${p && p.status === 'concluido' && X.status !== 'executando' ? `<button class="btn sm" data-action="reexecutar-fonte" data-did="${d.id}" data-id="${f.id}">${I('refresh', 13)}Reexecutar</button>` : ''}</div></div>`;
+  }).join('');
+
+  const novos = new Set(DIF.ui.feedNovos || []);
+  const feedRegras = d.regras.slice(-12).reverse();
+  const feed = feedRegras.length ? feedRegras.map(r => `<div class="feed-i ${novos.has(r.key) ? 'new' : ''}">
+      <div class="ico-box sm ${r.origem === 'manual' ? 'dark' : ''}">${I(r.origem === 'manual' ? 'edit' : (DIF.sourceTypes[r.evidencias[0]?.tipo] || { icon: 'file' }).icon, 15)}</div>
+      <div style="min-width:0"><div class="t">${esc(r.enunciado)}</div><div class="m"><span class="rid">${r.id}</span>${ui.badge(DIF.config.entidades[r.entidade] || r.entidade, 'b-neutral b-sm')}
+      ${r.evidencias.length > 1 ? ui.badge(`${r.evidencias.length} fontes`, 'b-tech b-sm') : ''}${DIF.regras.temConflito(r) ? ui.badge('Conflito', 'b-red b-sm', 'alert') : ''}</div></div></div>`).join('')
+    : `<div class="card-b explain">
+        <div class="e"><div class="ico-box sm">${I('code', 15)}</div><div><b>Fontes técnicas → fato verificado</b><small>Parsers de copybook, DTO, schema e contrato extraem a regra com arquivo e linha.</small></div></div>
+        <div class="e"><div class="ico-box sm red">${I('file', 15)}</div><div><b>Documentos → interpretação</b><small>Extração assistida, sempre com o trecho citado como evidência.</small></div></div>
+        <div class="e"><div class="ico-box sm red">${I('image', 15)}</div><div><b>Imagens → hipótese</b><small>Telas e fluxos sugerem regras que precisam de confirmação.</small></div></div>
+        <div class="e"><div class="ico-box sm dark">${I('scale', 15)}</div><div><b>Duplicadas e conflitos</b><small>A mesma regra em várias fontes vira uma só, com todas as evidências. Se as fontes divergem, a regra é marcada como conflito.</small></div></div></div>`;
+
+  const banner = X.status === 'concluido' ? `<div class="done-banner"><div class="ico-box">${I('check', 20)}</div><div><b>${U.n(d.regras.length)} regras prontas para validação</b>
+      <small>${multi} confirmadas por mais de uma fonte · ${conf} conflito(s) entre fontes exigem decisão individual</small></div>
+      <div class="r"><a class="btn primary" href="#/d/${d.id}/validacao">Validar regras${I('arrowR', 15)}</a></div></div>` : '';
+
+  return `${header}${banner}${painel}
+    <div class="split" style="margin-top:22px"><div class="card"><div class="card-h"><h3>Progresso por fonte</h3><span class="r muted" style="font-size:12.5px">${fontes.length} fonte(s)</span></div>${linhas}</div>
+    <div class="card"><div class="card-h"><h3>${feedRegras.length ? 'Regras encontradas' : 'Como funciona'}</h3>${feedRegras.length ? `<span class="r"><a class="link" href="#/d/${d.id}/validacao" style="font-size:12.5px">Ver todas</a></span>` : ''}</div><div class="feed">${feed}</div></div></div>`;
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/views/tabela-regras.js — tabela paginada, agrupada e com totalizadores
+   Reutilizada na Etapa 3 (escopo "d:<id>") e na base de regras (escopo "all").
+   ========================================================================== */
+DIF.views.tabelaRegras = (scope, regras, opt = {}) => {
+  const R = DIF.regras, C = DIF.config, I = DIF.icon, ui = DIF.ui, U = DIF.util, esc = U.esc;
+  const st = ui.tbl(scope);
+  const tot = R.totais(regras);
+  const filtradas = R.ordenar(R.filtrar(regras, st), st.group);
+  const pages = Math.max(1, Math.ceil(filtradas.length / st.size));
+  if (st.page > pages) st.page = pages;
+  const ini = (st.page - 1) * st.size, pagina = filtradas.slice(ini, ini + st.size);
+  const dataScope = `data-scope="${scope}"`;
+
+  // totalizadores (clicáveis)
+  const kpis = [['', 'Total', tot.total, 'layers', 'var(--ink)'], ['pendente', 'Pendentes', tot.pendentes, 'clock', 'var(--ink-400)', tot.revisao ? `${tot.revisao} em revisão` : 'aguardando decisão'],
+    ['aprovada', 'Aprovadas', tot.aprovadas, 'check', 'var(--ok)'], ['rejeitada', 'Rejeitadas', tot.rejeitadas, 'x', 'var(--ink-500)'],
+    ['conflito', 'Conflitos', tot.conflitos, 'alert', 'var(--red)', 'decisão individual'], ['semevid', 'Sem evidência', tot.semEvid, 'file', 'var(--warn)', 'sinalizadas']]
+    .map(([flag, l, v, ic, cor, s]) => `<button class="card kpi click ${st.flag === flag ? 'on' : ''}" data-action="tbl-flag" ${dataScope} data-flag="${flag}"><span class="acc" style="background:${cor}"></span>
+      <div class="l">${I(ic, 14)}${l}</div><div class="v tnum">${U.n(v)}</div><div class="s">${s || (tot.total ? U.pct(v, tot.total) + '% do total' : '—')}</div></button>`).join('');
+  const decididas = tot.aprovadas + tot.rejeitadas;
+
+  // filtros
+  const fontesMap = {};
+  regras.forEach(r => r.evidencias.forEach(e => { fontesMap[e.fonteId] = e.fonteNome; }));
+  const sel = (key, rotulo, mapa) => `<select class="sel ${st.f[key] ? 'on' : ''}" data-change="tbl-filtro" ${dataScope} data-key="${key}" aria-label="${rotulo}">${ui.options(mapa, st.f[key], rotulo)}</select>`;
+  const entidades = {}; regras.forEach(r => { entidades[r.entidade] = C.entidades[r.entidade] || r.entidade; });
+  const descMap = {}; if (opt.showDisc) DIF.store.state.descobertas.forEach(d => { if (d.regras.length) descMap[d.id] = d.nome; });
+  const temFiltro = st.q || st.flag || Object.values(st.f).some(Boolean);
+  const toolbar = `<div class="toolbar">
+    <label class="search">${I('search', 16)}<input id="busca-${scope}" type="search" placeholder="Buscar por regra, campo ou ID" value="${esc(st.q)}" data-input="tbl-busca" ${dataScope} aria-label="Buscar regras"></label>
+    ${opt.showDisc ? sel('descoberta', 'Descoberta', descMap) : ''}${sel('status', 'Status', C.status)}${sel('entidade', 'Entidade', entidades)}${sel('operacao', 'Operação', C.operacoes)}
+    ${sel('tipo', 'Tipo', C.tiposRegra)}${sel('fonte', 'Fonte', fontesMap)}${sel('classificacao', 'Classificação', C.classificacoes)}${sel('origem', 'Origem', C.origens)}
+    ${temFiltro ? `<button class="btn ghost sm" data-action="tbl-limpar" ${dataScope}>${I('x', 14)}Limpar filtros</button>` : ''}</div>`;
+
+  // seleção e ações em lote
+  const aprovaveis = filtradas.filter(r => r.status !== 'aprovada' && !R.temConflito(r)).length;
+  const conflitosFiltro = filtradas.filter(R.temConflito).length;
+  const paginaToda = pagina.length && pagina.every(r => st.sel.has(r.key));
+  const selbar = st.sel.size ? `<div class="selbar"><span class="n tnum">${st.sel.size} selecionada(s)</span>
+      ${paginaToda && filtradas.length > pagina.length && st.sel.size < filtradas.length ? `<button class="link" data-action="sel-todas-filtro" ${dataScope}>Selecionar todas as ${filtradas.length} do filtro</button>` : ''}
+      <button class="link" data-action="sel-limpar" ${dataScope}>Limpar seleção</button>
+      <div class="r"><button class="btn sm on-dark" data-action="devolver-selecionadas" ${dataScope}>${I('undo', 14)}Devolver</button>
+      <button class="btn sm on-dark" data-action="rejeitar-selecionadas" ${dataScope}>${I('x', 14)}Rejeitar</button>
+      <button class="btn sm ok" data-action="aprovar-selecionadas" ${dataScope}>${I('check', 14)}Aprovar selecionadas</button></div></div>`
+    : `<div class="tbl-top"><span class="muted" style="font-size:13px"><b class="tnum" style="color:var(--ink)">${U.n(filtradas.length)}</b> regra(s) no filtro${conflitosFiltro ? ` · <span style="color:var(--red)">${conflitosFiltro} em conflito</span>` : ''}</span>
+      <div class="r"><span class="muted" style="font-size:12.5px">Agrupar por</span>
+      <select class="sel" data-change="tbl-agrupar" ${dataScope} aria-label="Agrupar por">${ui.options(C.agrupamentos, st.group)}</select>
+      <button class="btn sm ok" data-action="aprovar-filtro" ${dataScope} ${aprovaveis ? '' : 'disabled'}>${I('check', 14)}Aprovar todas do filtro (${aprovaveis})</button></div></div>`;
+
+  // linhas
+  const cols = opt.showDisc ? 9 : 8;
+  const gruposTot = {};
+  if (st.group !== 'nenhum') filtradas.forEach(r => { const g = R.grupo(r, st.group); const t = gruposTot[g] ||= { n: 0, pend: 0, aprov: 0, conf: 0, keys: [] }; t.n++; t.keys.push(r.key); if (r.status === 'aprovada') t.aprov++; else if (r.status !== 'rejeitada') t.pend++; if (R.temConflito(r)) t.conf++; });
+  let ultimo = null, linhas = '';
+  for (const r of pagina) {
+    if (st.group !== 'nenhum') {
+      const g = R.grupo(r, st.group);
+      if (g !== ultimo) {
+        ultimo = g; const t = gruposTot[g], todos = t.keys.every(k => st.sel.has(k));
+        const aprovG = filtradas.filter(x => R.grupo(x, st.group) === g && x.status !== 'aprovada' && !R.temConflito(x)).length;
+        linhas += `<tr class="grp"><td class="c-chk"><input type="checkbox" class="chk" data-action="sel-grupo" ${dataScope} data-grupo="${esc(encodeURIComponent(g))}" ${todos ? 'checked' : ''} aria-label="Selecionar grupo"></td>
+          <td colspan="${cols - 1}"><div class="grp-in"><b>${esc(g)}</b><span class="muted tnum" style="font-size:12.5px">${t.n} regra(s)</span>
+          ${ui.badge(`${t.pend} pendente(s)`, 'b-dashed b-sm')}${ui.badge(`${t.aprov} aprovada(s)`, 'b-ok b-sm')}${t.conf ? ui.badge(`${t.conf} conflito(s)`, 'b-red b-sm') : ''}
+          <div class="r"><button class="btn sm" data-action="aprovar-grupo" ${dataScope} data-grupo="${esc(encodeURIComponent(g))}" ${aprovG ? '' : 'disabled'}>${I('check', 13)}Aprovar grupo (${aprovG})</button></div></div></td></tr>`;
+      }
+    }
+    const conf = R.temConflito(r), d = opt.showDisc ? DIF.store.descoberta(r.did) : null;
+    const fontesIc = [...new Map(r.evidencias.map(e => [e.fonteId, e])).values()];
+    linhas += `<tr class="row ${st.sel.has(r.key) ? 'sel' : ''} ${conf ? 'conf' : ''} ${r.status === 'rejeitada' ? 'rej' : ''}" data-action="abrir-regra" data-key="${r.key}">
+      <td class="c-chk"><input type="checkbox" class="chk" data-action="sel-toggle" ${dataScope} data-key="${r.key}" ${st.sel.has(r.key) ? 'checked' : ''} aria-label="Selecionar ${r.id}"></td>
+      <td style="min-width:320px"><div class="rtxt">${esc(r.enunciado)}</div><div class="rmeta"><span class="rid">${r.id}</span>${r.campo ? `<span class="mchip">${esc(r.campo)}</span>` : ''}
+        ${r.origem === 'manual' ? ui.badge('Manual', 'b-dark b-sm', 'edit') : ''}${conf ? ui.badge(esc(r.conflito.descricao), 'b-red b-sm', 'alert') : ''}${!r.evidencias.length ? ui.badge('Sem evidência', 'b-warn b-sm') : ''}</div></td>
+      ${opt.showDisc ? `<td class="cell2" style="max-width:180px"><b style="font-size:12.5px">${esc(d.nome)}</b><small>${esc(d.cluster)}</small></td>` : ''}
+      <td class="cell2"><b>${esc(C.entidades[r.entidade] || r.entidade)}</b><small>${C.operacoes[r.operacao] || ''}</small></td>
+      <td style="white-space:nowrap;font-size:13px">${C.tiposRegra[r.tipo]}</td>
+      <td><div class="sstack">${fontesIc.slice(0, 4).map(e => `<span class="${DIF.sourceTypes[e.tipo].classe === 'funcional' ? 'f' : ''}" title="${esc(e.fonteNome)}">${I(DIF.sourceTypes[e.tipo].icon, 14)}</span>`).join('') || `<span title="Cadastro manual">${I('edit', 14)}</span>`}</div></td>
+      <td style="white-space:nowrap">${ui.classifBadge(r)}</td>
+      <td>${ui.statusBadge(r)}</td>
+      <td class="acts"><button class="icon-btn ok" data-action="aprovar" data-key="${r.key}" data-tip="${conf ? 'Resolva o conflito' : 'Aprovar'}" aria-label="Aprovar" ${r.status === 'aprovada' ? 'disabled' : ''}>${I('check', 17)}</button>
+        <button class="icon-btn no" data-action="rejeitar" data-key="${r.key}" data-tip="Rejeitar" aria-label="Rejeitar" ${r.status === 'rejeitada' ? 'disabled' : ''}>${I('x', 17)}</button>
+        <button class="icon-btn" data-action="abrir-regra" data-key="${r.key}" aria-label="Detalhes">${I('chevR', 17)}</button></td></tr>`;
+  }
+  if (!pagina.length) linhas = `<tr><td colspan="${cols}">${ui.empty({ icon: 'search', titulo: 'Nenhuma regra neste filtro', texto: 'Ajuste a busca ou limpe os filtros para ver todas as regras.', acao: temFiltro ? `<button class="btn" data-action="tbl-limpar" ${dataScope}>Limpar filtros</button>` : '' })}</td></tr>`;
+
+  // paginação
+  const nums = [];
+  for (let p = 1; p <= pages; p++) if (p === 1 || p === pages || Math.abs(p - st.page) <= 1) nums.push(p); else if (nums[nums.length - 1] !== '…') nums.push('…');
+  const pager = `<div class="pager"><span class="tnum">Mostrando ${filtradas.length ? ini + 1 : 0}–${Math.min(ini + st.size, filtradas.length)} de ${U.n(filtradas.length)}</span>
+    <div class="sp"><button class="pg" data-action="tbl-pagina" ${dataScope} data-p="${st.page - 1}" ${st.page <= 1 ? 'disabled' : ''} aria-label="Página anterior">${I('chevL', 15)}</button>
+    ${nums.map(p => p === '…' ? '<span>…</span>' : `<button class="pg tnum ${p === st.page ? 'on' : ''}" data-action="tbl-pagina" ${dataScope} data-p="${p}">${p}</button>`).join('')}
+    <button class="pg" data-action="tbl-pagina" ${dataScope} data-p="${st.page + 1}" ${st.page >= pages ? 'disabled' : ''} aria-label="Próxima página">${I('chevR', 15)}</button>
+    <select class="sel" data-change="tbl-tamanho" ${dataScope} aria-label="Itens por página">${ui.options(Object.fromEntries(C.pageSizes.map(n => [n, `${n} por página`])), st.size)}</select></div></div>`;
+
+  return `<div class="grid g6" style="margin-bottom:16px">${kpis}</div>
+    <div class="valbar"><span>Validadas <b class="tnum">${U.pct(decididas, tot.total)}%</b></span><div class="prog"><span style="width:${U.pct(decididas, tot.total)}%"></span></div><span class="tnum">${decididas} de ${tot.total} decididas</span></div>
+    <div class="card" style="overflow:hidden">${toolbar}${selbar}
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th class="c-chk"><input type="checkbox" class="chk" data-action="sel-pagina" ${dataScope} ${paginaToda ? 'checked' : ''} aria-label="Selecionar página"></th>
+      <th>Regra</th>${opt.showDisc ? '<th>Descoberta</th>' : ''}<th>Entidade</th><th>Tipo</th><th>Fontes</th><th>Classificação</th><th>Status</th><th style="text-align:right">Ações</th></tr></thead>
+    <tbody>${linhas}</tbody></table></div>${pager}</div>`;
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/views/etapa-validacao.js — Etapa 3
+   ========================================================================== */
+DIF.views.etapaValidacao = d => {
+  const I = DIF.icon, ui = DIF.ui;
+  const acoes = `<button class="btn" data-action="nova-regra" data-did="${d.id}">${I('plus', 16)}Cadastrar regra</button>`;
+  const header = ui.pageHeader({ n: 3, eyebrow: 'Etapa 3 · Validação', titulo: 'Validar as regras <em>antes de virarem fatos</em>',
+    sub: 'Aprove individualmente, por grupo ou tudo o que estiver no filtro. Regras em conflito exigem decisão individual e nunca entram na aprovação em lote.', acoes });
+  if (!d.regras.length) return header + `<div class="card">${ui.empty({ icon: 'shield', titulo: 'Nenhuma regra para validar', texto: 'Execute o levantamento nas fontes ou cadastre uma regra manualmente.',
+    acao: `<div style="display:flex;gap:10px;justify-content:center"><a class="btn primary" href="#/d/${d.id}/levantamento">Ir para Levantamento</a><button class="btn" data-action="nova-regra" data-did="${d.id}">Cadastrar regra</button></div>` })}</div>`;
+  return header + DIF.views.tabelaRegras('d:' + d.id, d.regras);
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/views/etapa-pacotes.js — Etapa 4
+   ========================================================================== */
+DIF.views.etapaPacotes = d => {
+  const I = DIF.icon, ui = DIF.ui, U = DIF.util, C = DIF.config, esc = U.esc;
+  const t = DIF.regras.totais(d.regras), b = DIF.pacotes.bloqueios(d);
+  const aprov = d.regras.filter(r => r.status === 'aprovada');
+  const evid = aprov.reduce((s, r) => s + r.evidencias.length, 0);
+  const porEnt = U.groupBy(aprov, r => r.entidade);
+  const ultima = d.versoes[d.versoes.length - 1];
+  const mud = DIF.pacotes.previa(d);
+  const nMud = mud ? mud.adicionados.length + mud.alterados.length + mud.removidos.length : aprov.length;
+  const podeGerar = b.aprovadas > 0 && b.conflitos === 0 && nMud > 0;
+  const header = ui.pageHeader({ n: 4, eyebrow: 'Etapa 4 · Pacotes', titulo: 'Gerar <em>fatos autenticados</em> e evidências',
+    sub: 'Somente regras aprovadas viram fatos. Cada geração cria uma nova versão dos pacotes de domínio, comparável com a anterior.' });
+
+  const resumo = `<div class="card"><div class="card-h"><h3>O que entra nesta versão</h3><span class="r">${ui.badge(`v${(ultima ? ultima.n : 0) + 1}`, 'b-dark')}</span></div><div class="card-b">
+      <div class="grid g3" style="margin-bottom:18px">
+        <div><div class="muted" style="font-size:12.5px">Fatos</div><div class="tnum" style="font-size:30px;font-weight:650;letter-spacing:-.03em">${U.n(aprov.length)}</div></div>
+        <div><div class="muted" style="font-size:12.5px">Evidências</div><div class="tnum" style="font-size:30px;font-weight:650;letter-spacing:-.03em">${U.n(evid)}</div></div>
+        <div><div class="muted" style="font-size:12.5px">Pacotes</div><div class="tnum" style="font-size:30px;font-weight:650;letter-spacing:-.03em">${Object.keys(porEnt).length}</div></div></div>
+      <table class="tbl" style="border:1px solid var(--ink-200);border-radius:12px;overflow:hidden"><thead><tr><th>Pacote</th><th>Fatos</th><th>Evidências</th><th>Fontes</th></tr></thead><tbody>
+      ${Object.entries(porEnt).map(([ent, rs]) => `<tr><td><b>${esc(d.cluster)} · ${esc(C.entidades[ent] || ent)}</b><div class="rid">pk-${U.slug(d.cluster)}-${ent}</div></td>
+        <td class="tnum">${rs.length}</td><td class="tnum">${rs.reduce((s, r) => s + r.evidencias.length, 0)}</td><td class="tnum">${new Set(rs.flatMap(r => r.evidencias.map(e => e.fonteId))).size}</td></tr>`).join('') || `<tr><td colspan="4" class="muted">Nenhuma regra aprovada ainda.</td></tr>`}
+      </tbody></table></div></div>`;
+  const fora = `<div class="card"><div class="card-h"><h3>Ficam de fora</h3></div><div class="card-b pk-sum">
+      <div class="rowi">${I('clock', 16)}Pendentes ou em revisão<b class="tnum">${t.pendentes}</b></div>
+      <div class="rowi">${I('x', 16)}Rejeitadas<b class="tnum">${t.rejeitadas}</b></div>
+      <div class="rowi" style="color:${t.conflitos ? 'var(--red)' : ''}">${I('alert', 16)}Em conflito<b class="tnum">${t.conflitos}</b></div>
+      ${b.semEvid ? `<div class="rowi" style="color:var(--warn)">${I('file', 16)}Aprovadas sem evidência (entram sinalizadas)<b class="tnum">${b.semEvid}</b></div>` : ''}
+      ${t.pendentes ? `<a class="btn sm" style="margin-top:12px;align-self:flex-start" href="#/d/${d.id}/validacao">${I('shield', 14)}Voltar à validação</a>` : ''}
+      <button class="btn primary lg" style="margin-top:18px;width:100%" data-action="gerar-pacotes" data-did="${d.id}" ${podeGerar ? '' : 'disabled'}>${I('sparkles', 17)}Gerar pacotes · v${(ultima ? ultima.n : 0) + 1}</button>
+      <div class="muted" style="font-size:12.5px;margin-top:10px;text-align:center">${!b.aprovadas ? 'Aprove ao menos uma regra.' : b.conflitos ? 'Há regras aprovadas com conflito aberto.' : !mud ? 'Primeira versão desta descoberta' : nMud ? `Desde a v${ultima.n}: +${mud.adicionados.length} novos · ~${mud.alterados.length} alterados · −${mud.removidos.length} removidos` : `Sem mudanças desde a v${ultima.n}`}</div>
+    </div></div>`;
+
+  let versoes = '';
+  if (d.versoes.length) {
+    const seln = DIF.ui.pacoteSel[d.id] || ultima.n, v = d.versoes.find(x => x.n === seln) || ultima;
+    const lista = [...d.versoes].reverse().map(x => `<div class="ver ${x.n === v.n ? 'on' : ''}" data-action="ver-versao" data-did="${d.id}" data-n="${x.n}">
+      <div class="vn tnum">v${x.n}</div><div class="meta"><b>${x.totais.fatos} fatos · ${x.totais.pacotes} pacote(s)</b><small>${x.totais.evidencias} evidências · ${U.dataHora(x.criadoEm)} · ${esc(x.por)}</small></div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">${x.status === 'publicado' ? ui.badge('Publicado', 'b-ok b-sm', 'send') : ui.badge('Gerado', 'b-dashed b-sm')}
+      ${x.diff ? `<div class="diffc">${ui.badge('+' + x.diff.adicionados.length, 'b-ok b-sm')}${ui.badge('~' + x.diff.alterados.length, 'b-warn b-sm')}${ui.badge('−' + x.diff.removidos.length, 'b-red b-sm')}</div>` : ui.badge('Inicial', 'b-neutral b-sm')}</div></div>`).join('');
+    const pacotes = v.pacotes.map(p => `<div class="card pkg"><div class="h"><div class="ico-box red">${I('box', 20)}</div><div style="min-width:0"><b>${esc(p.nome)}</b><small>${p.id} · #${p.hash}</small></div></div>
+      <div class="nums"><div><b class="tnum">${p.fatos.length}</b><small>fatos</small></div><div><b class="tnum">${p.evidencias}</b><small>evidências</small></div><div><b class="tnum">${p.fatos.filter(f => f.classificacao === 'fato').length}</b><small>verificados</small></div></div>
+      <div class="acts"><button class="btn sm" data-action="ver-conteudo" data-did="${d.id}" data-n="${v.n}" data-pk="${p.id}">${I('eye', 14)}Ver conteúdo</button>
+      <button class="btn sm" data-action="baixar-pacote" data-did="${d.id}" data-n="${v.n}" data-pk="${p.id}">${I('download', 14)}Baixar</button></div></div>`).join('');
+    const df = v.diff;
+    const diffHtml = df ? `<div class="card" style="margin-top:16px"><div class="card-h"><h3>Mudanças desde a v${v.n - 1}</h3></div><div class="card-b dl">
+        ${[...df.adicionados.map(x => ['add', '+', x]), ...df.alterados.map(x => ['alt', '~', x]), ...df.removidos.map(x => ['rem', '−', x])].slice(0, 12)
+          .map(([c, s, x]) => `<div class="di ${c}"><span class="s">${s}</span><span class="rid" style="width:84px;flex-shrink:0">${x.id}</span><span>${esc(x.enunciado)}</span></div>`).join('') || '<span class="muted">Sem mudanças.</span>'}
+        ${df.adicionados.length + df.alterados.length + df.removidos.length > 12 ? `<span class="muted" style="font-size:12.5px">e mais ${df.adicionados.length + df.alterados.length + df.removidos.length - 12} mudança(s)</span>` : ''}</div></div>` : '';
+    versoes = `<div class="sec-t"><h2>Versões</h2><span class="sub">${d.versoes.length} versão(ões) geradas</span></div>
+      <div class="vers">${lista}</div><div><div class="card" style="padding:18px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px">
+          <div><div class="eyebrow"><span class="line"></span>Versão ${v.n}</div><div style="font-size:18px;font-weight:650;margin-top:4px">${v.totais.pacotes} pacote(s) · ${v.totais.fatos} fatos</div>
+          <div class="muted" style="font-size:12.5px">${v.status === 'publicado' ? `Publicado em domain-packs/${U.slug(d.cluster)} · ${U.dataHora(v.publicadoEm)}` : 'Ainda não publicado'}</div></div>
+          <div style="margin-left:auto;display:flex;gap:8px"><button class="btn" data-action="ver-conteudo" data-did="${d.id}" data-n="${v.n}">${I('eye', 15)}Ver tudo</button>
+          <button class="btn" data-action="baixar-pacote" data-did="${d.id}" data-n="${v.n}">${I('download', 15)}Baixar</button>
+          <button class="btn dark" data-action="publicar-versao" data-did="${d.id}" data-n="${v.n}" ${v.status === 'publicado' ? 'disabled' : ''}>${I('send', 15)}${v.status === 'publicado' ? 'Publicado' : 'Publicar'}</button></div></div>
+        <div class="grid g3">${pacotes}</div>${diffHtml}</div>`;
+  }
+  return `${header}<div class="split">${resumo}${fora}</div>${versoes}`;
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/views/bases.js — Biblioteca de fontes, base de regras e pacotes
+   ========================================================================== */
+DIF.views.fontes = () => {
+  const S = DIF.store, I = DIF.icon, ui = DIF.ui, filtro = ui.bibFiltro;
+  const lista = S.state.fontes.filter(f => !filtro || f.tipo === filtro);
+  const chips = [['', 'Todas', S.state.fontes.length], ...Object.entries(DIF.sourceTypes).map(([k, t]) => [k, t.nome, S.state.fontes.filter(f => f.tipo === k).length])]
+    .map(([k, l, n]) => `<button class="chip ${filtro === k ? 'on' : ''}" data-action="bib-filtro" data-tipo="${k}">${l}<span class="tnum" style="opacity:.6">${n}</span></button>`).join('');
+  return `${ui.pageHeader({ eyebrow: 'Bases · Biblioteca de fontes', titulo: 'Fontes <em>reutilizáveis</em> entre descobertas',
+      sub: 'Cadastre uma vez e use em qualquer descoberta. As credenciais ficam no servidor e nunca são exibidas no navegador.',
+      acoes: `<button class="btn primary" data-action="escolher-tipo-fonte">${I('plus', 16)}Nova fonte</button>` })}
+    <div class="chips" style="margin-bottom:16px">${chips}</div>
+    ${lista.length ? lista.map(f => {
+      const usadas = S.state.descobertas.filter(d => d.fontes.includes(f.id));
+      return DIF.views.fonteItem(f, { extra: `<small style="margin-top:2px">${DIF.icon('compass', 12, 'style="vertical-align:-2px"')} ${usadas.length ? 'Usada em: ' + usadas.map(d => DIF.util.esc(d.nome)).join(', ') : 'Ainda não usada em descobertas'}</small>` });
+    }).join('') : `<div class="card">${ui.empty({ icon: 'layers', titulo: 'Nenhuma fonte deste tipo', texto: 'Cadastre uma nova fonte para reutilizá-la nas descobertas.' })}</div>`}`;
+};
+
+DIF.views.regras = () => DIF.ui.pageHeader({ eyebrow: 'Bases · Regras', titulo: 'Base de <em>regras</em> de todas as descobertas',
+  sub: 'Os mesmos filtros, agrupamentos e ações da validação, agora sobre todas as descobertas.' }) +
+  (DIF.store.todasRegras().length ? DIF.views.tabelaRegras('all', DIF.store.todasRegras(), { showDisc: true })
+    : `<div class="card">${DIF.ui.empty({ icon: 'list', titulo: 'Nenhuma regra ainda', texto: 'As regras aparecem aqui conforme as descobertas avançam.' })}</div>`);
+
+DIF.views.pacotes = () => {
+  const I = DIF.icon, ui = DIF.ui, U = DIF.util, esc = U.esc;
+  const todas = DIF.store.todasVersoes().sort((a, b) => b.v.criadoEm - a.v.criadoEm);
+  const linhas = todas.map(({ d, v }) => `<tr class="row" data-action="nav" data-to="d/${d.id}/pacotes" data-did="${d.id}" data-n="${v.n}">
+      <td><b>${esc(d.nome)}</b><div class="rid">${d.id} · ${esc(d.cluster)}</div></td><td>${ui.badge('v' + v.n, 'b-dark')}</td>
+      <td class="tnum">${v.totais.pacotes}</td><td class="tnum">${v.totais.fatos}</td><td class="tnum">${v.totais.evidencias}</td>
+      <td>${v.diff ? `<div class="diffc">${ui.badge('+' + v.diff.adicionados.length, 'b-ok b-sm')}${ui.badge('~' + v.diff.alterados.length, 'b-warn b-sm')}${ui.badge('−' + v.diff.removidos.length, 'b-red b-sm')}</div>` : ui.badge('Inicial', 'b-neutral b-sm')}</td>
+      <td class="tnum">${U.dataHora(v.criadoEm)}</td><td>${v.status === 'publicado' ? ui.badge('Publicado', 'b-ok', 'send') : ui.badge('Gerado', 'b-dashed')}</td>
+      <td class="acts"><button class="icon-btn" data-action="ver-conteudo" data-did="${d.id}" data-n="${v.n}" aria-label="Ver conteúdo">${I('eye', 16)}</button>
+      <button class="icon-btn" data-action="baixar-pacote" data-did="${d.id}" data-n="${v.n}" aria-label="Baixar">${I('download', 16)}</button></td></tr>`).join('');
+  return `${ui.pageHeader({ eyebrow: 'Bases · Pacotes', titulo: 'Pacotes de domínio <em>versionados</em>', sub: 'Todas as versões geradas pelas descobertas, com o que mudou em cada uma.' })}
+    <div class="card" style="overflow:hidden">${todas.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Descoberta</th><th>Versão</th><th>Pacotes</th><th>Fatos</th><th>Evidências</th><th>Mudanças</th><th>Gerado em</th><th>Status</th><th></th></tr></thead><tbody>${linhas}</tbody></table></div>`
+      : ui.empty({ icon: 'box', titulo: 'Nenhum pacote gerado', texto: 'Aprove regras em uma descoberta e gere a primeira versão na etapa 4.' })}</div>`;
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/ui/overlays.js — gaveta de detalhe da regra e modais
+   ========================================================================== */
+DIF.overlays = {};
+DIF.overlays.drawerRegra = dw => {
+  const r = DIF.store.regra(dw.key);
+  if (!r) return '';
+  const I = DIF.icon, ui = DIF.ui, U = DIF.util, C = DIF.config, esc = U.esc, R = DIF.regras;
+  const d = DIF.store.descoberta(r.did), conf = R.temConflito(r);
+  let conflito = '';
+  if (r.conflito && r.conflito.versoes.length > 1) {
+    const res = r.conflito.resolucao;
+    conflito = `<div class="dsec"><div class="conflict"><div class="t">${I('alert', 18)}As fontes divergem: ${esc(r.conflito.descricao)}</div>
+      <p>Escolha a versão vigente ou registre como divergência a investigar. Enquanto o conflito estiver aberto, a regra não pode ser aprovada.</p>
+      <div class="versions">${r.conflito.versoes.map((v, i) => `<div class="version ${res === i ? 'chosen' : ''}">
+          <div style="display:flex;gap:6px;align-items:center">${ui.fonteIcone(v.tipo, 'sm')}<div style="min-width:0"><b style="font-size:13px">${esc(v.fonteNome)}</b><div class="ref">${esc(v.referencia)}</div></div></div>
+          <div class="val">${esc(v.valor)}</div><pre class="code">${esc(U.mask(v.trecho))}</pre>
+          ${res === i ? `<span class="badge b-ok">${I('check', 13)}Versão vigente</span>` : `<button class="btn sm" data-action="resolver-conflito" data-key="${r.key}" data-idx="${i}">Usar esta versão</button>`}</div>`).join('')}</div>
+      ${res != null ? `<div class="resolved">${I('check', 16)}Resolvido: vale "${esc(r.conflito.versoes[res].valor)}" (${esc(r.conflito.versoes[res].fonteNome)})<button class="link" data-action="desfazer-resolucao" data-key="${r.key}">Desfazer</button></div>`
+        : r.conflito.divergencia ? `<div class="resolved warn">${I('alert', 16)}Registrada como divergência a investigar<button class="link" data-action="desfazer-resolucao" data-key="${r.key}">Desfazer</button></div>`
+        : `<div style="margin-top:10px"><button class="btn sm ghost" data-action="divergencia" data-key="${r.key}">${I('scale', 14)}Registrar como divergência a investigar</button></div>`}
+    </div></div>`;
+  }
+  const evid = r.evidencias.length ? r.evidencias.map(e => `<div class="ev"><div class="ev-h">${ui.fonteIcone(e.tipo, 'sm')}<div style="min-width:0"><b>${esc(e.fonteNome)}</b><div class="muted" style="font-size:12px">${DIF.sourceTypes[e.tipo].nome} · ${esc(e.versao)}</div></div>
+      <div class="r">${ui.classeBadge(DIF.sourceTypes[e.tipo].classe)}</div></div>
+      <div class="muted mono" style="font-size:12px;margin-bottom:6px">${esc(e.arquivo)} · ${esc(e.linha)}</div>
+      <pre class="code">${/^\d+$/.test(e.linha) ? `<span class="ln">${e.linha}</span>` : ''}${esc(U.mask(e.trecho))}</pre></div>`).join('')
+    : `<div class="ev" style="background:var(--warn-soft);border-color:rgba(168,107,18,.25);color:var(--warn);font-size:13px">${I('alert', 15, 'style="vertical-align:-3px"')} Regra sem evidência. Pode ser aprovada, mas entra no pacote sinalizada.</div>`;
+  const rel = R.relacionadas(r);
+  const hist = [...r.historico].reverse().map(h => `<div class="tl-i"><b>${esc(h.acao)}</b><small>${esc(h.quem)} · ${U.dataHora(h.quando)}</small>${h.motivo ? `<div class="why">${esc(h.motivo)}</div>` : ''}</div>`).join('');
+  const titulo = dw.editando
+    ? `<textarea class="inp" id="edit-enunciado" style="margin-top:12px;font-size:15px">${esc(r.enunciado)}</textarea><div class="muted" style="font-size:12px;margin-top:6px">${r.status === 'aprovada' ? 'Editar uma regra aprovada devolve a regra para pendente.' : 'A edição fica registrada no histórico.'}</div>`
+    : `<h2>${esc(r.enunciado)}</h2>`;
+  const meta = [['Entidade', C.entidades[r.entidade] || r.entidade], ['Operação', C.operacoes[r.operacao] || '—'], ['Campo', r.campo || '—'], ['Tipo', C.tiposRegra[r.tipo]],
+    ['Origem', C.origens[r.origem]], ['Fonte', { tecnica: 'Técnica', funcional: 'Funcional', ambas: 'Técnica + funcional' }[r.fonteClasse]],
+    ['Classificação', `${C.classificacoes[r.classificacao]} · ${Math.round(r.confianca * 100)}%`], ['Descoberta', d.nome]];
+  const rodape = dw.editando
+    ? `<button class="btn ghost" data-action="cancelar-edicao">Cancelar</button><div class="r"><button class="btn primary" data-action="salvar-edicao" data-key="${r.key}">${I('check', 15)}Salvar edição</button></div>`
+    : `<button class="btn ghost" data-action="editar-regra">${I('edit', 15)}Editar</button><div class="r">
+        <button class="btn" data-action="rejeitar" data-key="${r.key}" ${r.status === 'rejeitada' ? 'disabled' : ''}>${I('x', 15)}Rejeitar</button>
+        <button class="btn" data-action="devolver" data-key="${r.key}" ${r.status === 'revisao' ? 'disabled' : ''}>${I('undo', 15)}Devolver</button>
+        <button class="btn ok" data-action="aprovar" data-key="${r.key}" ${conf || r.status === 'aprovada' ? 'disabled' : ''} ${conf ? 'data-tip="Resolva o conflito antes"' : ''}>${I('check', 15)}${r.status === 'aprovada' ? 'Aprovada' : 'Aprovar'}</button></div>`;
+  return `<aside class="drawer" role="dialog" aria-modal="true" aria-label="Detalhe da regra ${r.id}">
+    <div class="drawer-h"><div class="top"><span class="rid" style="font-size:13px">${r.id}</span>${ui.statusBadge(r)}${r.origem === 'manual' ? ui.badge('Manual', 'b-dark b-sm', 'edit') : ''}
+      <button class="icon-btn x" data-action="fechar-drawer" aria-label="Fechar">${I('x', 18)}</button></div>${titulo}
+      <div class="rmeta" style="margin-top:10px">${ui.badge(esc(C.entidades[r.entidade] || r.entidade), 'b-neutral b-sm')}${ui.badge(C.operacoes[r.operacao] || '', 'b-neutral b-sm')}${r.campo ? `<span class="mchip">${esc(r.campo)}</span>` : ''}${ui.classeBadge(r.fonteClasse)}</div></div>
+    <div class="drawer-b">${conflito}
+      <div class="dsec"><h4>${I('list', 13)}Metadados</h4><div class="meta-grid">${meta.map(([l, v]) => `<div><small>${l}</small><b>${esc(v)}</b></div>`).join('')}</div></div>
+      <div class="dsec"><h4>${I('quote', 13)}Evidências (${r.evidencias.length})</h4>${evid}</div>
+      ${rel.length ? `<div class="dsec"><h4>${I('link', 13)}Regras relacionadas</h4>${rel.map(x => `<div class="lib-i" style="cursor:pointer" data-action="abrir-regra" data-key="${x.key}"><span class="rid" style="width:64px">${x.id}</span><div class="meta"><b style="font-weight:500;white-space:normal">${esc(x.enunciado)}</b></div>${ui.statusBadge(x)}</div>`).join('')}</div>` : ''}
+      <div class="dsec"><h4>${I('clock', 13)}Histórico</h4><div class="tl">${hist}</div></div></div>
+    <div class="drawer-f">${rodape}</div></aside>`;
+};
+
+DIF.modais = {
+  'nova-descoberta': () => ({ titulo: 'Nova descoberta', sub: 'Uma descoberta reúne as fontes, as regras e os pacotes de uma demanda.', icon: 'compass',
+    corpo: `<form id="mform" data-submit="criar-descoberta"><div class="field"><label for="f-nome">Nome</label><input class="inp" id="f-nome" name="nome" required placeholder="Ex.: Comercialização · Garantia de veículos" autofocus></div>
+      <div class="field"><label for="f-dem">Demanda</label><textarea class="inp" id="f-dem" name="demanda" placeholder="O que a demanda precisa entregar e qual o escopo de negócio"></textarea></div>
+      <div class="field"><label for="f-cl">Cluster</label><select class="inp" id="f-cl" name="cluster">${DIF.config.clusters.map(c => `<option>${c}</option>`).join('')}</select></div></form>`,
+    rodape: `<button class="btn" data-action="fechar-modal">Cancelar</button><button class="btn primary" type="submit" form="mform">${DIF.icon('arrowR', 15)}Criar e escolher fontes</button>` }),
+
+  'escolher-tipo': () => ({ titulo: 'Nova fonte', sub: 'Escolha o tipo. Cada tipo tem um formulário próprio.', icon: 'layers', wide: true,
+    corpo: `<div class="grid g4">${Object.entries(DIF.sourceTypes).map(([k, t]) => `<button class="stype" data-action="abrir-tipo-fonte" data-tipo="${k}"><span class="plus">${DIF.icon('plus', 18)}</span><div class="ico-box">${DIF.icon(t.icon, 20)}</div><div><b>${t.nome}</b><br><small>${t.desc}</small></div><div>${DIF.ui.classeBadge(t.classe)}</div></button>`).join('')}</div>`,
+    rodape: `<button class="btn" data-action="fechar-modal">Cancelar</button>` }),
+
+  fonte: m => {
+    const t = DIF.sourceTypes[m.fonteTipo], esc = DIF.util.esc;
+    const campos = t.upload
+      ? `<label class="drop" id="drop" for="f-arq">${DIF.icon('upload', 26)}<div style="margin-top:8px;font-weight:600">Arraste arquivos ou clique para selecionar</div><div style="font-size:12.5px;margin-top:2px">${t.aceita === 'image/*' ? 'PNG, JPG ou SVG' : 'PDF, Word, Excel, Markdown ou texto'}</div></label>
+         <input type="file" id="f-arq" name="arquivos" multiple accept="${t.aceita}" style="display:none" data-change="arquivos-fonte"><div class="files" id="lista-arquivos"></div>`
+      : t.campos.map(c => `<div class="field"><label for="f-${c.k}">${c.l}${c.req ? ' *' : ''}</label>${c.tipo === 'select'
+        ? `<select class="inp" id="f-${c.k}" name="${c.k}">${c.ops.map(o => `<option>${esc(o)}</option>`).join('')}</select>`
+        : `<input class="inp" id="f-${c.k}" name="${c.k}" placeholder="${esc(c.ph || '')}" ${c.req ? 'required' : ''}>`}</div>`).join('');
+    return { titulo: t.nome, sub: `${t.desc} · fonte ${t.classe === 'tecnica' ? 'técnica' : 'funcional'}`, icon: t.icon,
+      corpo: `<form id="mform" data-submit="conectar-fonte"><div class="field"><label for="f-nomefonte">Nome da fonte *</label><input class="inp" id="f-nomefonte" name="nome" required placeholder="Como esta fonte vai aparecer nas regras"></div>${campos}
+        <div style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--ink-100);font-size:12.5px;color:var(--ink-700);margin-top:4px">${DIF.icon('shield', 16)}
+        <span>${t.classe === 'tecnica' ? 'Regras desta fonte são extraídas de forma determinística e nascem como <b>fato verificado</b>.' : t.icon === 'image' ? 'Regras de imagens nascem como <b>hipótese</b> e precisam de confirmação.' : 'Regras de documentos nascem como <b>interpretação</b>, sempre com o trecho citado.'} Credenciais ficam no servidor.</span></div></form>`,
+      rodape: m.testando ? `<button class="btn" disabled>${DIF.icon('refresh', 15, 'class="ic spin"')}Testando conexão…</button>`
+        : `<button class="btn" data-action="${m.did ? 'fechar-modal' : 'escolher-tipo-fonte'}">${m.did ? 'Cancelar' : 'Voltar'}</button><button class="btn primary" type="submit" form="mform">${DIF.icon('plug', 15)}Testar e conectar</button>` };
+  },
+
+  'regra-manual': m => {
+    const C = DIF.config, ui = DIF.ui;
+    return { titulo: 'Cadastrar regra', sub: 'Regras manuais passam pela mesma validação das regras levantadas.', icon: 'edit', wide: true,
+      corpo: `<form id="mform" data-submit="salvar-regra"><div class="field"><label for="r-en">Enunciado da regra *</label><textarea class="inp" id="r-en" name="enunciado" required placeholder="Escreva em linguagem de negócio. Ex.: Garantia em processo judicial não pode ser excluída."></textarea></div>
+        <div class="grid g3" style="gap:12px"><div class="field"><label for="r-ent">Entidade</label><select class="inp" id="r-ent" name="entidade">${ui.options(C.entidades)}</select></div>
+        <div class="field"><label for="r-op">Operação</label><select class="inp" id="r-op" name="operacao">${ui.options(C.operacoes)}</select></div>
+        <div class="field"><label for="r-tp">Tipo</label><select class="inp" id="r-tp" name="tipo">${ui.options(C.tiposRegra)}</select></div></div>
+        <div class="grid g2" style="gap:12px"><div class="field"><label for="r-cp">Campo (opcional)</label><input class="inp" id="r-cp" name="campo" placeholder="ex.: motivo_bloqueio"></div>
+        <div class="field"><label for="r-cl">Natureza da regra</label><select class="inp" id="r-cl" name="classe"><option value="funcional">Funcional (negócio)</option><option value="tecnica">Técnica (implementação)</option></select></div></div>
+        <div class="dsec" style="margin-top:6px"><h4>${DIF.icon('quote', 13)}Evidência (opcional, recomendada)</h4>
+        <div class="grid g2" style="gap:12px"><div class="field"><label for="r-ref">Referência</label><input class="inp" id="r-ref" name="referencia" placeholder="Documento, arquivo ou ata · seção/linha"></div>
+        <div class="field"><label for="r-tr">Trecho</label><input class="inp" id="r-tr" name="trecho" placeholder="Citação que sustenta a regra"></div></div>
+        <small class="muted">Sem evidência, a regra é sinalizada e nasce como hipótese.</small></div></form>`,
+      rodape: `<button class="btn" data-action="fechar-modal">Cancelar</button><button class="btn primary" type="submit" form="mform">${DIF.icon('plus', 15)}Cadastrar regra</button>` };
+  },
+
+  rejeitar: m => ({ titulo: m.keys.length > 1 ? `Rejeitar ${m.keys.length} regras` : 'Rejeitar regra', sub: 'O motivo fica no histórico de cada regra.', icon: 'x',
+    corpo: `<form id="mform" data-submit="confirmar-rejeicao"><div class="chips" style="margin-bottom:12px">${DIF.config.motivosRejeicao.map(x => `<button type="button" class="chip" data-action="motivo-rapido" data-motivo="${x}">${x}</button>`).join('')}</div>
+      <div class="field"><label for="m-mot">Motivo *</label><textarea class="inp" id="m-mot" name="motivo" required placeholder="Por que esta regra não deve virar fato?"></textarea></div></form>`,
+    rodape: `<button class="btn" data-action="fechar-modal">Cancelar</button><button class="btn primary" type="submit" form="mform">${DIF.icon('x', 15)}Rejeitar</button>` }),
+
+  confirmar: m => ({ titulo: m.titulo, sub: m.sub, icon: m.icon || 'alert', corpo: m.corpo || '',
+    rodape: `<button class="btn" data-action="fechar-modal">Cancelar</button><button class="btn ${m.classe || 'primary'}" data-action="${m.acao}" ${Object.entries(m.dados || {}).map(([k, v]) => `data-${k}="${DIF.util.esc(v)}"`).join(' ')}>${m.botao}</button>` }),
+
+  gerando: m => ({ titulo: 'Gerando pacotes', sub: 'Transformando regras aprovadas em fatos autenticados.', icon: 'sparkles',
+    corpo: `<div class="gen-steps">${['Consolidando fatos das regras aprovadas', 'Vinculando evidências e versões das fontes', 'Calculando assinaturas (hash) dos fatos', 'Versionando e comparando com a versão anterior']
+      .map((t, i) => `<div class="gen-s ${i < m.passo ? 'ok' : i === m.passo ? 'on' : ''}"><span class="c">${i < m.passo ? DIF.icon('check', 13) : i === m.passo ? DIF.icon('refresh', 13, 'class="ic spin"') : ''}</span>${t}</div>`).join('')}</div>
+      <div class="prog lg busy" style="margin-top:16px"><span style="width:${(m.passo / 4) * 100}%"></span></div>`, rodape: '' }),
+
+  conteudo: m => {
+    const d = DIF.store.descoberta(m.did), v = d.versoes.find(x => x.n === +m.n);
+    const obj = DIF.pacotes.conteudo(d, v, m.pk);
+    return { titulo: m.pk ? `Conteúdo · ${m.pk}` : `Conteúdo da versão ${v.n}`, sub: `${obj.pacotes.reduce((s, p) => s + p.fatos.length, 0)} fatos · documentos mascarados`, icon: 'box', wide: true,
+      corpo: `<pre class="json">${DIF.util.jsonHtml(obj)}</pre>`,
+      rodape: `<button class="btn" data-action="fechar-modal">Fechar</button><button class="btn primary" data-action="baixar-pacote" data-did="${m.did}" data-n="${m.n}" ${m.pk ? `data-pk="${m.pk}"` : ''}>${DIF.icon('download', 15)}Baixar JSON</button>` };
+  },
+};
+
+DIF.overlays.render = () => {
+  const ui = DIF.ui, el = document.getElementById('overlay');
+  let html = '';
+  if (ui.drawer) html += `<div class="backdrop" data-action="fechar-drawer"></div>${DIF.overlays.drawerRegra(ui.drawer)}`;
+  if (ui.modal) {
+    const m = DIF.modais[ui.modal.tipo](ui.modal);
+    html += `<div class="backdrop top" ${ui.modal.tipo === 'gerando' ? '' : 'data-action="fechar-modal"'}></div>
+      <div class="modal ${m.wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${DIF.util.esc(m.titulo)}">
+      <div class="modal-h"><div class="ico-box red">${DIF.icon(m.icon, 20)}</div><div><h3>${m.titulo}</h3>${m.sub ? `<p>${m.sub}</p>` : ''}</div>
+      ${ui.modal.tipo === 'gerando' ? '' : `<button class="icon-btn x" data-action="fechar-modal" aria-label="Fechar">${DIF.icon('x', 18)}</button>`}</div>
+      <div class="modal-b">${m.corpo}</div>${m.rodape ? `<div class="modal-f">${m.rodape}</div>` : ''}</div>`;
+  }
+  const chave = JSON.stringify([ui.drawer && ui.drawer.key, ui.modal && ui.modal.tipo]);
+  el.classList.toggle('still', chave === DIF.overlays.ultimaChave);
+  DIF.overlays.ultimaChave = chave;
+  el.innerHTML = html;
+  const auto = el.querySelector('[autofocus]');
+  if (auto && !el.classList.contains('still')) auto.focus();
+};
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/core/actions.js — todas as ações da interface (delegação de eventos)
+   Elementos usam data-action (clique), data-change, data-input e data-submit (formulários).
+   ========================================================================== */
+DIF.actions = (() => {
+  const S = DIF.store, R = DIF.regras, ui = DIF.ui, U = DIF.util, C = DIF.config;
+  const render = () => DIF.app.render();
+  const desc = el => S.descoberta(el.dataset.did);
+  const abrirModal = m => { ui.modal = m; DIF.overlays.render(); };
+  const fecharModal = () => { ui.modal = null; DIF.overlays.render(); };
+  const keysDe = scope => [...ui.tbl(scope).sel];
+  const grupoKeys = el => {
+    const scope = el.dataset.scope, st = ui.tbl(scope), g = decodeURIComponent(el.dataset.grupo);
+    return R.filtrar(ui.regrasDoEscopo(scope), st).filter(r => R.grupo(r, st.group) === g).map(r => r.key);
+  };
+  function aprovarKeys(keys, contexto) {
+    let ok = 0, conflito = 0;
+    S.commit(() => keys.forEach(k => { const r = S.regra(k); if (!r || r.status === 'aprovada') return; if (R.aprovar(r)) ok++; else conflito++; }));
+    ui.toast(`${ok} regra(s) aprovada(s)${conflito ? ` · ${conflito} em conflito ficaram de fora` : ''}${contexto ? ' · ' + contexto : ''}`, conflito ? 'warn' : 'ok');
+  }
+  let debounce;
+
+  const A = {
+    nav: el => DIF.router.go(el.dataset.to),
+    'restaurar-demo': () => abrirModal({ tipo: 'confirmar', titulo: 'Restaurar demonstração?', sub: 'Todos os dados locais voltam ao estado inicial fictício.', acao: 'restaurar-demo-ok', botao: 'Restaurar', icon: 'refresh' }),
+    'restaurar-demo-ok': () => { S.reset(); ui.tabelas = {}; ui.modal = null; ui.drawer = null; DIF.router.go('descobertas'); render(); ui.toast('Demonstração restaurada'); },
+
+    // descobertas
+    'nova-descoberta': () => abrirModal({ tipo: 'nova-descoberta' }),
+    'criar-descoberta': form => {
+      const v = Object.fromEntries(new FormData(form));
+      if (!v.nome.trim()) return;
+      const id = S.commit(s => { s.seq.d++; const id = `D-${U.pad(s.seq.d, 3)}`; s.descobertas.unshift(DIF.mock.novaDescoberta(id, v.nome.trim(), v.demanda.trim(), v.cluster)); return id; });
+      ui.modal = null; DIF.router.go(`d/${id}/fontes`); ui.toast('Descoberta criada · escolha as fontes');
+    },
+    'concluir-descoberta': el => { ui.toast(`Descoberta "${desc(el).nome}" salva`, 'ok'); DIF.router.go('descobertas'); },
+
+    // fontes
+    'escolher-tipo-fonte': () => abrirModal({ tipo: 'escolher-tipo' }),
+    'abrir-tipo-fonte': el => abrirModal({ tipo: 'fonte', fonteTipo: el.dataset.tipo, did: el.dataset.did || null, arquivos: [] }),
+    'conectar-fonte': form => {
+      const m = ui.modal, t = DIF.sourceTypes[m.fonteTipo], v = Object.fromEntries(new FormData(form));
+      if (t.upload && !m.arquivos.length) { ui.toast('Selecione ao menos um arquivo', 'err'); return; }
+      const config = { ...v }; delete config.arquivos;
+      m.testando = true; DIF.overlays.render();
+      setTimeout(() => {
+        const falhou = /erro|falha/i.test(Object.values(config).join(' '));
+        const id = S.commit(s => {
+          s.seq.f++; const id = `F-${U.pad(s.seq.f, 2)}`;
+          const detalhe = t.upload ? `${m.arquivos.length} arquivo(s)` : Object.values(config).filter(Boolean).slice(1).join(' · ') || t.desc;
+          const preview = t.upload ? m.arquivos.length * (m.fonteTipo === 'imagem' ? 1 : 16) : 5 + Math.round(Math.random() * 400);
+          s.fontes.push({ id, tipo: m.fonteTipo, nome: v.nome.trim(), detalhe, versao: t.upload ? 'enviado agora' : 'atual', preview, status: falhou ? 'erro' : 'conectada',
+            testadoEm: Date.now(), criadaEm: Date.now(), config: t.upload ? { arquivos: m.arquivos } : config });
+          if (m.did) S.descoberta(m.did).fontes.push(id);
+          return id;
+        });
+        ui.modal = null; render();
+        ui.toast(falhou ? 'Fonte adicionada, mas a conexão falhou. Revise e teste de novo.' : `Fonte conectada${m.did ? ' à descoberta' : ' à biblioteca'}`, falhou ? 'err' : 'ok');
+        void id;
+      }, 1100);
+    },
+    'arquivos-fonte': el => {
+      ui.modal.arquivos = [...el.files].map(f => ({ nome: f.name, tamanho: f.size }));
+      document.getElementById('lista-arquivos').innerHTML = ui.modal.arquivos.map(f => `<div>${DIF.icon('file', 14)}${U.esc(f.nome)}<span class="muted" style="margin-left:auto">${Math.max(1, Math.round(f.tamanho / 1024))} KB</span></div>`).join('');
+    },
+    'add-fonte-biblioteca': el => { S.commit(() => desc(el).fontes.push(el.dataset.id)); render(); ui.toast('Fonte adicionada · levante as regras dela na etapa 2'); },
+    'remover-fonte': el => { S.commit(() => { const d = desc(el); d.fontes = d.fontes.filter(id => id !== el.dataset.id); delete d.extracao.porFonte[el.dataset.id]; }); render(); ui.toast('Fonte removida da descoberta · as regras já levantadas foram mantidas', 'info'); },
+    'excluir-fonte': el => { S.commit(s => { s.fontes = s.fontes.filter(f => f.id !== el.dataset.id); }); render(); ui.toast('Fonte excluída da biblioteca'); },
+    'testar-fonte': el => {
+      const f = S.fonte(el.dataset.id); f.status = 'testando'; render();
+      setTimeout(() => { S.commit(() => { f.status = /erro|falha/i.test(f.nome) ? 'erro' : 'conectada'; f.testadoEm = Date.now(); }); render(); ui.toast(f.status === 'conectada' ? `${f.nome}: conexão ok` : `${f.nome}: falha na conexão`, f.status === 'conectada' ? 'ok' : 'err'); }, 900);
+    },
+    'bib-filtro': el => { ui.bibFiltro = el.dataset.tipo; render(); },
+
+    // levantamento
+    'iniciar-levantamento': el => DIF.extracao.iniciar(desc(el)),
+    'pausar-levantamento': el => DIF.extracao.pausar(desc(el)),
+    'reexecutar-fonte': el => DIF.extracao.iniciar(desc(el), [el.dataset.id]),
+
+    // regra manual
+    'nova-regra': el => abrirModal({ tipo: 'regra-manual', did: el.dataset.did }),
+    'salvar-regra': form => {
+      const v = Object.fromEntries(new FormData(form)), did = ui.modal.did;
+      if (!v.enunciado.trim()) return;
+      const key = S.commit(s => {
+        const d = S.descoberta(did); s.seq.m++;
+        const r = DIF.mock.materializar(d, { id: `M-${U.pad(s.seq.m, 4)}`, entidade: v.entidade, operacao: v.operacao, tipo: v.tipo, campo: v.campo.trim() || null, enunciado: v.enunciado.trim(), conflito: null }, Date.now(), C.usuario);
+        r.origem = 'manual'; r.fonteClasse = v.classe; r.historico[0].acao = 'Cadastrada manualmente';
+        if (v.referencia.trim() || v.trecho.trim()) r.evidencias.push({ fonteId: 'manual', fonteNome: 'Informado pelo usuário', tipo: 'documento', arquivo: v.referencia.trim() || 'Referência não informada', linha: '—', trecho: v.trecho.trim() || '—', versao: U.data(Date.now()) });
+        R.recalcular(r); if (!r.evidencias.length) r.fonteClasse = v.classe;
+        d.regras.push(r); return r.key;
+      });
+      ui.modal = null; render(); ui.toast('Regra cadastrada · pendente de validação');
+      void key;
+    },
+
+    // tabela
+    'tbl-flag': el => { const st = ui.tbl(el.dataset.scope); st.flag = st.flag === el.dataset.flag ? '' : el.dataset.flag; st.page = 1; render(); },
+    'tbl-limpar': el => { const st = ui.tbl(el.dataset.scope); st.q = ''; st.flag = ''; Object.keys(st.f).forEach(k => { st.f[k] = ''; }); st.page = 1; render(); },
+    'tbl-pagina': el => { ui.tbl(el.dataset.scope).page = +el.dataset.p; render(); document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' }); },
+    'tbl-filtro': el => { const st = ui.tbl(el.dataset.scope); st.f[el.dataset.key] = el.value; st.page = 1; render(); },
+    'tbl-agrupar': el => { ui.tbl(el.dataset.scope).group = el.value; render(); },
+    'tbl-tamanho': el => { const st = ui.tbl(el.dataset.scope); st.size = +el.value; st.page = 1; render(); },
+    'tbl-busca': el => { clearTimeout(debounce); debounce = setTimeout(() => { const st = ui.tbl(el.dataset.scope); st.q = el.value; st.page = 1; render(); }, 180); },
+    'sel-toggle': el => { const s = ui.tbl(el.dataset.scope).sel; s.has(el.dataset.key) ? s.delete(el.dataset.key) : s.add(el.dataset.key); render(); },
+    'sel-pagina': el => {
+      const scope = el.dataset.scope, st = ui.tbl(scope);
+      const f = R.ordenar(R.filtrar(ui.regrasDoEscopo(scope), st), st.group), pg = f.slice((st.page - 1) * st.size, st.page * st.size);
+      const todos = pg.every(r => st.sel.has(r.key)); pg.forEach(r => (todos ? st.sel.delete(r.key) : st.sel.add(r.key))); render();
+    },
+    'sel-grupo': el => { const st = ui.tbl(el.dataset.scope), ks = grupoKeys(el), todos = ks.every(k => st.sel.has(k)); ks.forEach(k => (todos ? st.sel.delete(k) : st.sel.add(k))); render(); },
+    'sel-todas-filtro': el => { const st = ui.tbl(el.dataset.scope); R.filtrar(ui.regrasDoEscopo(el.dataset.scope), st).forEach(r => st.sel.add(r.key)); render(); },
+    'sel-limpar': el => { ui.tbl(el.dataset.scope).sel.clear(); render(); },
+
+    // decisões
+    aprovar: el => {
+      const r = S.regra(el.dataset.key);
+      if (R.temConflito(r)) { ui.toast('Resolva o conflito entre as fontes antes de aprovar', 'warn'); ui.drawer = { key: r.key }; render(); return; }
+      S.commit(() => R.aprovar(r)); render(); ui.toast(`${r.id} aprovada`);
+    },
+    rejeitar: el => abrirModal({ tipo: 'rejeitar', keys: [el.dataset.key] }),
+    devolver: el => { const r = S.regra(el.dataset.key); S.commit(() => R.devolver(r, 'Devolvida para revisão do especialista')); render(); ui.toast(`${r.id} devolvida para revisão`, 'info'); },
+    'motivo-rapido': el => { const t = document.getElementById('m-mot'); t.value = el.dataset.motivo; t.focus(); },
+    'confirmar-rejeicao': form => {
+      const motivo = new FormData(form).get('motivo').trim(); if (!motivo) return;
+      const keys = ui.modal.keys;
+      S.commit(() => keys.forEach(k => { const r = S.regra(k); if (r) R.rejeitar(r, motivo); }));
+      Object.values(ui.tabelas).forEach(st => keys.forEach(k => st.sel.delete(k)));
+      ui.modal = null; render(); ui.toast(`${keys.length} regra(s) rejeitada(s)`);
+    },
+    'aprovar-selecionadas': el => { const st = ui.tbl(el.dataset.scope); aprovarKeys(keysDe(el.dataset.scope)); st.sel.clear(); render(); },
+    'rejeitar-selecionadas': el => abrirModal({ tipo: 'rejeitar', keys: keysDe(el.dataset.scope) }),
+    'devolver-selecionadas': el => {
+      const keys = keysDe(el.dataset.scope);
+      S.commit(() => keys.forEach(k => R.devolver(S.regra(k), 'Devolvida em lote para revisão')));
+      ui.tbl(el.dataset.scope).sel.clear(); render(); ui.toast(`${keys.length} regra(s) devolvida(s) para revisão`, 'info');
+    },
+    'aprovar-grupo': el => { aprovarKeys(grupoKeys(el), `grupo "${decodeURIComponent(el.dataset.grupo)}"`); render(); },
+    'aprovar-filtro': el => {
+      const scope = el.dataset.scope, f = R.filtrar(ui.regrasDoEscopo(scope), ui.tbl(scope));
+      const alvo = f.filter(r => r.status !== 'aprovada' && !R.temConflito(r)), conf = f.filter(R.temConflito).length, sem = alvo.filter(R.semEvidencia).length;
+      abrirModal({ tipo: 'confirmar', icon: 'check', titulo: `Aprovar ${alvo.length} regra(s) do filtro?`, sub: 'Cada aprovação fica registrada no histórico da regra.', acao: 'aprovar-filtro-ok', dados: { scope }, classe: 'ok', botao: `Aprovar ${alvo.length} regra(s)`,
+        corpo: `<div class="pk-sum"><div class="rowi">${DIF.icon('check', 16)}Serão aprovadas<b class="tnum">${alvo.length}</b></div>
+          <div class="rowi" style="color:var(--red)">${DIF.icon('alert', 16)}Em conflito · ficam de fora<b class="tnum">${conf}</b></div>
+          <div class="rowi" style="color:var(--warn)">${DIF.icon('file', 16)}Sem evidência · aprovadas e sinalizadas<b class="tnum">${sem}</b></div></div>` });
+    },
+    'aprovar-filtro-ok': el => {
+      const scope = el.dataset.scope, f = R.filtrar(ui.regrasDoEscopo(scope), ui.tbl(scope));
+      ui.modal = null; aprovarKeys(f.filter(r => r.status !== 'aprovada').map(r => r.key), 'filtro atual'); render();
+    },
+
+    // detalhe da regra
+    'abrir-regra': el => { ui.drawer = { key: el.dataset.key, editando: false }; DIF.overlays.render(); },
+    'fechar-drawer': () => { ui.drawer = null; DIF.overlays.render(); },
+    'fechar-modal': () => fecharModal(),
+    'editar-regra': () => { ui.drawer.editando = true; DIF.overlays.render(); document.getElementById('edit-enunciado')?.focus(); },
+    'cancelar-edicao': () => { ui.drawer.editando = false; DIF.overlays.render(); },
+    'salvar-edicao': el => {
+      const r = S.regra(el.dataset.key), novo = document.getElementById('edit-enunciado').value.trim();
+      if (novo && novo !== r.enunciado) S.commit(() => {
+        const antes = r.enunciado; r.enunciado = novo; R.hist(r, 'Enunciado editado', `Antes: ${antes}`);
+        if (r.status === 'aprovada') { r.status = 'pendente'; R.hist(r, 'Voltou para pendente após edição'); }
+      });
+      ui.drawer.editando = false; render(); ui.toast('Edição salva');
+    },
+    'resolver-conflito': el => {
+      const r = S.regra(el.dataset.key), i = +el.dataset.idx, v = r.conflito.versoes[i];
+      S.commit(() => { r.conflito.resolucao = i; r.conflito.divergencia = false; if (r.status === 'revisao') r.status = 'pendente'; R.hist(r, `Conflito resolvido: vale "${v.valor}"`, `Versão de ${v.fonteNome}`); R.recalcular(r); });
+      render(); ui.toast('Conflito resolvido · a regra já pode ser aprovada');
+    },
+    divergencia: el => { const r = S.regra(el.dataset.key); S.commit(() => { r.conflito.divergencia = true; r.status = 'revisao'; R.hist(r, 'Registrada como divergência a investigar'); }); render(); ui.toast('Divergência registrada para investigação', 'info'); },
+    'desfazer-resolucao': el => {
+      const r = S.regra(el.dataset.key);
+      S.commit(() => { r.conflito.resolucao = null; r.conflito.divergencia = false; if (r.status === 'aprovada') r.status = 'pendente'; R.hist(r, 'Resolução do conflito desfeita'); R.recalcular(r); });
+      render();
+    },
+
+    // pacotes
+    'gerar-pacotes': el => {
+      const d = desc(el); abrirModal({ tipo: 'gerando', passo: 0 });
+      const passo = i => {
+        if (i < 4) { ui.modal.passo = i; DIF.overlays.render(); setTimeout(() => passo(i + 1), 650); return; }
+        const v = S.commit(() => DIF.pacotes.gerar(d, d.regras.filter(r => r.status === 'aprovada')));
+        ui.pacoteSel[d.id] = v.n; ui.modal = null; render();
+        ui.toast(`Versão v${v.n} gerada · ${v.totais.fatos} fatos em ${v.totais.pacotes} pacote(s)`);
+      };
+      passo(0);
+    },
+    'ver-versao': el => { ui.pacoteSel[el.dataset.did] = +el.dataset.n; render(); },
+    'ver-conteudo': el => abrirModal({ tipo: 'conteudo', did: el.dataset.did, n: el.dataset.n, pk: el.dataset.pk || null }),
+    'baixar-pacote': el => {
+      const d = desc(el), v = d.versoes.find(x => x.n === +el.dataset.n);
+      U.download(`${el.dataset.pk || 'pacotes-' + U.slug(d.nome)}-v${v.n}.json`, JSON.stringify(DIF.pacotes.conteudo(d, v, el.dataset.pk), null, 2));
+      ui.toast('Download iniciado');
+    },
+    'publicar-versao': el => abrirModal({ tipo: 'confirmar', icon: 'send', titulo: `Publicar a versão v${el.dataset.n}?`, sub: `Os pacotes ficam disponíveis para os agentes em domain-packs/${U.slug(desc(el).cluster)}.`,
+      acao: 'publicar-versao-ok', dados: { did: el.dataset.did, n: el.dataset.n }, classe: 'dark', botao: 'Publicar' }),
+    'publicar-versao-ok': el => {
+      const v = desc(el).versoes.find(x => x.n === +el.dataset.n);
+      S.commit(() => { v.status = 'publicado'; v.publicadoEm = Date.now(); }); ui.modal = null; render(); ui.toast(`Versão v${v.n} publicada`);
+    },
+  };
+  return A;
+})();
+
+/* ============================================================================
+   FUTURO ARQUIVO: js/app.js — renderização e inicialização
+   ========================================================================== */
+DIF.app = (() => {
+  const $ = id => document.getElementById(id);
+  let ultimaRota = '';
+
+  function conteudo(r) {
+    if (r.view !== 'etapa') return { html: DIF.views[r.view](), rodape: '' };
+    const d = DIF.store.descoberta(r.id);
+    if (!d) return { html: DIF.ui.empty({ icon: 'compass', titulo: 'Descoberta não encontrada', texto: 'Ela pode ter sido removida ao restaurar a demonstração.', acao: '<a class="btn primary" href="#/descobertas">Ver descobertas</a>' }), rodape: '' };
+    DIF.ui.ultimaDescoberta = d.id;
+    const mapa = { fontes: 'etapaFontes', levantamento: 'etapaLevantamento', validacao: 'etapaValidacao', pacotes: 'etapaPacotes' };
+    return { html: DIF.views[mapa[r.etapa] || 'etapaFontes'](d), rodape: DIF.views.rodapeWizard(d, r.etapa) };
+  }
+
+  function renderView() {
+    const r = DIF.ui.rota = DIF.router.parse();
+    const chave = JSON.stringify(r);
+    const ativo = document.activeElement, id = ativo && ativo.id, pos = ativo && ativo.selectionStart;
+    const { html, rodape } = conteudo(r);
+    $('view-wrap').innerHTML = `<div class="view ${chave === ultimaRota ? 'still' : ''}">${html}</div>${rodape}`;
+    $('topbar').innerHTML = DIF.views.topbar(r);
+    ultimaRota = chave;
+    if (id) { const el = document.getElementById(id); if (el && el.tagName === 'INPUT') { el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) { /* tipo sem seleção */ } } }
+  }
+
+  function render() {
+    renderView();
+    $('sidebar').innerHTML = DIF.views.sidebar(DIF.ui.rota);
+    DIF.overlays.render();
+  }
+
+  function eventos() {
+    document.addEventListener('click', e => {
+      const el = e.target.closest('[data-action]');
+      if (!el || el.disabled) return;
+      const fn = DIF.actions[el.dataset.action];
+      if (!fn) return;
+      if (el.tagName === 'A' || (el.tagName === 'BUTTON' && el.type !== 'submit')) e.preventDefault();
+      e.stopPropagation();
+      fn(el, e);
+    });
+    document.addEventListener('change', e => { const el = e.target.closest('[data-change]'); if (el) DIF.actions[el.dataset.change](el, e); });
+    document.addEventListener('input', e => { const el = e.target.closest('[data-input]'); if (el) DIF.actions[el.dataset.input](el, e); });
+    document.addEventListener('submit', e => { const f = e.target.closest('[data-submit]'); if (!f) return; e.preventDefault(); DIF.actions[f.dataset.submit](f, e); });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (DIF.ui.modal && DIF.ui.modal.tipo !== 'gerando') { DIF.ui.modal = null; DIF.overlays.render(); }
+      else if (DIF.ui.drawer) { DIF.ui.drawer = null; DIF.overlays.render(); }
+    });
+    // arrastar arquivos para a área de upload
+    ['dragover', 'dragleave', 'drop'].forEach(tipo => document.addEventListener(tipo, e => {
+      const drop = e.target.closest && e.target.closest('#drop');
+      if (!drop) return;
+      e.preventDefault();
+      drop.classList.toggle('over', tipo === 'dragover');
+      if (tipo === 'drop') { const inp = document.getElementById('f-arq'); inp.files = e.dataTransfer.files; DIF.actions['arquivos-fonte'](inp); }
+    }));
+    window.addEventListener('hashchange', () => { DIF.ui.drawer = null; DIF.ui.modal = null; render(); $('main').scrollTop = 0; });
+  }
+
+  return {
+    render, renderView,
+    init() { DIF.store.load(); eventos(); render(); },
+  };
+})();
+
+DIF.app.init();
+</script>
+</body>
+</html>

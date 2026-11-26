@@ -1,0 +1,6 @@
+# Estados pré-aquecidos em horário ocioso. A prioridade sobe para estados que mais aparecem como garimpo vazio.
+estados:
+  - {estado: "credito:contrato.ativo", minimo: 3}
+  - {estado: "garantias:garantia_imobiliaria.ativa_sem_vinculo", minimo: 3}
+  - {estado: "garantias:garantia_imobiliaria.associada", minimo: 3}
+  - {estado: "garantias:garantia_imobiliaria.bloqueada", minimo: 2}

@@ -1,0 +1,7 @@
+entidades:
+  garantias:garantia_imobiliaria:
+    tabela: garantia
+    copybook: demo/fontes/CPGAR10.cpy
+    java: [demo/fontes/GarantiaImobiliariaRequest.java, demo/fontes/BloqueioRequest.java]
+    openapi: {arquivo: catalogo/garantias/openapi.json, esquemas: [NovaGarantia, Bloqueio]}
+    domain_pack: demo/fontes/domain_pack/fatos.json

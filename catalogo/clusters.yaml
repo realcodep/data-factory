@@ -1,0 +1,10 @@
+# Catálogo federado: cada cluster é dono dos seus estados e receitas; outros clusters consomem por referência.
+clusters:
+  credito:
+    versao: "1.0.0"
+    dono: "Cluster Crédito (fictício na demo)"
+    depende_de: []
+  garantias:
+    versao: "1.0.0"
+    dono: "Cluster Garantias"
+    depende_de: [credito]

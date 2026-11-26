@@ -1,0 +1,452 @@
+{
+  "plano_id": "PL-e189898418",
+  "log": [
+    "vocabulário: 2 entidades; operações de garantia: ['inclusao', 'associacao', 'bloqueio', 'desassociacao', 'exclusao']",
+    "conflito conhecido no catálogo: [\"JUD\", \"ADM\"]",
+    "interpretei 8 entradas em 9 especificações (CT-07 → duas leituras)",
+    "plano PL-e189898418: 8 instâncias de massa para 9 cenários; fases ['F0', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7']",
+    "plano a seco: estratégias {'I-01': 'garimpar', 'I-02': 'garimpar', 'I-03': 'garimpar', 'I-04': 'garimpar', 'I-05': 'garimpar', 'I-06': 'garimpar', 'I-07': 'provisionar', 'I-08': 'provisionar'}",
+    "decididas sem IA: []",
+    "pendências para mim: [('PD-01', 'conflito_regra', ['CT-08'])]",
+    "perguntas ao humano: 1 → CT-08: o código aceita motivo FRA, mas o normativo NG-IMO-01 §5.1 só prevê JUD e ADM. O teste deve esperar aceite (código) ou rejeição (normativo)?",
+    "CT-08: recomendação aplicada por prazo (seguir normativo) e marcada como premissa",
+    "aprovação necessária: ['O plano exige aprovação única: operação que consome registro: garantias:excluir (cenário CT-05)']",
+    "resumo: {'cenarios': 9, 'ok': 8, 'divergencias': 1, 'bloqueados': 0, 'falhas': 0, 'garimpadas': 6, 'provisionadas': 2}",
+    "CT-01: ok (HTTP 201)",
+    "CT-02: ok (HTTP 201)",
+    "CT-03: ok (HTTP 202)",
+    "CT-04: ok (HTTP 409)",
+    "CT-05: ok (HTTP 200)",
+    "CT-06: ok (HTTP 422)",
+    "CT-07a: ok (HTTP 422)",
+    "CT-07b: ok (HTTP 422)",
+    "CT-08: divergencia (HTTP 202)",
+    "métricas: {\"cenarios_planejados\": 9, \"perguntas_ao_humano\": 1, \"perguntas_por_cenario\": 0.111, \"cenarios_concluidos_sem_intervencao\": 0, \"massa_por_origem\": {\"garimpo\": 12, \"provisionado\": 2}, \"taxa_garimpo\": 0.857, \"receitas_quebradas_detectadas\": 0, \"expectativas_por_origem\": {\"funcional\": 10}, \"expectativas_sem_fonte_funcional\": 0, \"decisoes_por_degrau\": {\"duas_leituras\": 1, \"premissa\": 1}}"
+  ],
+  "relatorio": {
+    "plano_id": "PL-e189898418",
+    "suite": "MANUAL-ACEITE-IMOBILIARIO",
+    "catalogo": "aa5ab328c7f7ff95",
+    "resumo": {
+      "cenarios": 9,
+      "ok": 8,
+      "divergencias": 1,
+      "bloqueados": 0,
+      "falhas": 0,
+      "garimpadas": 6,
+      "provisionadas": 2
+    },
+    "cenarios": [
+      {
+        "id": "CT-01",
+        "titulo": "Incluir garantia imobiliária válida",
+        "status": "ok",
+        "modo": "api",
+        "resposta": {
+          "status": 201
+        },
+        "verificacao": {
+          "cenario": "CT-01",
+          "ok": true,
+          "itens": [
+            {
+              "descricao": "Garantia criada ativa e sem vínculo",
+              "verificacao": {
+                "estado": "garantias:garantia_imobiliaria.ativa_sem_vinculo",
+                "papel": "alvo"
+              },
+              "ok": true,
+              "obtido": "atingido",
+              "origem": "funcional",
+              "fonte": "FN-GAR-008"
+            }
+          ],
+          "oraculo_nao_independente": false
+        },
+        "falha": null,
+        "alertas": []
+      },
+      {
+        "id": "CT-02",
+        "titulo": "Associar garantia a contrato ativo",
+        "status": "ok",
+        "modo": "api",
+        "resposta": {
+          "status": 201
+        },
+        "verificacao": {
+          "cenario": "CT-02",
+          "ok": true,
+          "itens": [
+            {
+              "descricao": "Garantia associada",
+              "verificacao": {
+                "estado": "garantias:garantia_imobiliaria.associada",
+                "papel": "alvo"
+              },
+              "ok": true,
+              "obtido": "atingido",
+              "origem": "funcional",
+              "fonte": "FN-GAR-006"
+            }
+          ],
+          "oraculo_nao_independente": false
+        },
+        "falha": null,
+        "alertas": []
+      },
+      {
+        "id": "CT-03",
+        "titulo": "Bloquear garantia associada por determinação judicial",
+        "status": "ok",
+        "modo": "api",
+        "resposta": {
+          "status": 202
+        },
+        "verificacao": {
+          "cenario": "CT-03",
+          "ok": true,
+          "itens": [
+            {
+              "descricao": "Garantia bloqueada",
+              "verificacao": {
+                "estado": "garantias:garantia_imobiliaria.bloqueada",
+                "papel": "alvo"
+              },
+              "ok": true,
+              "obtido": "atingido",
+              "origem": "funcional",
+              "fonte": "FN-GAR-003"
+            }
+          ],
+          "oraculo_nao_independente": false
+        },
+        "falha": null,
+        "alertas": []
+      },
+      {
+        "id": "CT-04",
+        "titulo": "Não desassociar garantia bloqueada",
+        "status": "ok",
+        "modo": "api",
+        "resposta": {
+          "status": 409
+        },
+        "verificacao": {
+          "cenario": "CT-04",
+          "ok": true,
+          "itens": [
+            {
+              "descricao": "Desassociação rejeitada",
+              "verificacao": {
+                "rejeitado": true
+              },
+              "ok": true,
+              "obtido": 409,
+              "origem": "funcional",
+              "fonte": "FN-GAR-007"
+            },
+            {
+              "descricao": "Garantia continua bloqueada",
+              "verificacao": {
+                "estado_mantido": "garantias:garantia_imobiliaria.bloqueada",
+                "papel": "alvo"
+              },
+              "ok": true,
+              "obtido": "mantido",
+              "origem": "funcional",
+              "fonte": "FN-GAR-007"
+            }
+          ],
+          "oraculo_nao_independente": false
+        },
+        "falha": null,
+        "alertas": []
+      },
+      {
+        "id": "CT-05",
+        "titulo": "Excluir garantia sem vínculo",
+        "status": "ok",
+        "modo": "api",
+        "resposta": {
+          "status": 200
+        },
+        "verificacao": {
+          "cenario": "CT-05",
+          "ok": true,
+          "itens": [
+            {
+              "descricao": "Garantia excluída",
+              "verificacao": {
+                "estado": "garantias:garantia_imobiliaria.excluida",
+                "papel": "alvo"
+              },
+              "ok": true,
+              "obtido": "atingido",
+              "origem": "funcional",
+              "fonte": "FN-GAR-009"
+            }
+          ],
+          "oraculo_nao_independente": false
+        },
+        "falha": null,
+        "alertas": []
+      },
+      {
+        "id": "CT-06",
+        "titulo": "Inclusão com valor de avaliação abaixo do mínimo",
+        "status": "ok",
+        "modo": "api",
+        "resposta": {
+          "status": 422
+        },
+        "verificacao": {
+          "cenario": "CT-06",
+          "ok": true,
+          "itens": [
+            {
+              "descricao": "Inclusão rejeitada",
+              "verificacao": {
+                "rejeitado": true
+              },
+              "ok": true,
+              "obtido": 422,
+              "origem": "funcional",
+              "fonte": "FN-GAR-005"
+            }
+          ],
+          "oraculo_nao_independente": false
+        },
+        "falha": null,
+        "alertas": []
+      },
+      {
+        "id": "CT-07a",
+        "titulo": "Bloqueio com motivo fora do domínio",
+        "status": "ok",
+        "modo": "api",
+        "resposta": {
+          "status": 422
+        },
+        "verificacao": {
+          "cenario": "CT-07a",
+          "ok": true,
+          "itens": [
+            {
+              "descricao": "Bloqueio recusado",
+              "verificacao": {
+                "rejeitado": true
+              },
+              "ok": true,
+              "obtido": 422,
+              "origem": "funcional",
+              "fonte": "FN-GAR-002"
+            }
+          ],
+          "oraculo_nao_independente": false
+        },
+        "falha": null,
+        "alertas": []
+      },
+      {
+        "id": "CT-07b",
+        "titulo": "Bloqueio sem motivo",
+        "status": "ok",
+        "modo": "api",
+        "resposta": {
+          "status": 422
+        },
+        "verificacao": {
+          "cenario": "CT-07b",
+          "ok": true,
+          "itens": [
+            {
+              "descricao": "Bloqueio recusado",
+              "verificacao": {
+                "rejeitado": true
+              },
+              "ok": true,
+              "obtido": 422,
+              "origem": "funcional",
+              "fonte": "FN-GAR-002"
+            }
+          ],
+          "oraculo_nao_independente": false
+        },
+        "falha": null,
+        "alertas": []
+      },
+      {
+        "id": "CT-08",
+        "titulo": "Bloqueio com motivo FRA",
+        "status": "divergencia",
+        "modo": "api",
+        "resposta": {
+          "status": 202
+        },
+        "verificacao": {
+          "cenario": "CT-08",
+          "ok": false,
+          "itens": [
+            {
+              "descricao": "Normativo: FRA não é motivo previsto — bloqueio deve ser rejeitado",
+              "verificacao": {
+                "rejeitado": true
+              },
+              "ok": false,
+              "obtido": 202,
+              "origem": "funcional",
+              "fonte": "FN-GAR-002"
+            }
+          ],
+          "oraculo_nao_independente": false
+        },
+        "falha": null,
+        "alertas": []
+      }
+    ],
+    "massa": [
+      {
+        "instancia": "I-01",
+        "estado": "garantias:garantia_imobiliaria.ativa_sem_vinculo",
+        "uso": "consumivel",
+        "cenarios": [
+          "CT-02"
+        ],
+        "registro": "garantia:3",
+        "origem": "garimpo"
+      },
+      {
+        "instancia": "I-02",
+        "estado": "credito:contrato.ativo",
+        "uso": "compartilhavel",
+        "cenarios": [
+          "CT-02"
+        ],
+        "registro": "contrato:1",
+        "origem": "garimpo"
+      },
+      {
+        "instancia": "I-03",
+        "estado": "garantias:garantia_imobiliaria.associada",
+        "uso": "consumivel",
+        "cenarios": [
+          "CT-03"
+        ],
+        "registro": "garantia:1",
+        "origem": "garimpo"
+      },
+      {
+        "instancia": "I-04",
+        "estado": "garantias:garantia_imobiliaria.bloqueada",
+        "uso": "consumivel",
+        "cenarios": [
+          "CT-04"
+        ],
+        "registro": "garantia:2",
+        "origem": "garimpo"
+      },
+      {
+        "instancia": "I-05",
+        "estado": "garantias:garantia_imobiliaria.ativa_sem_vinculo",
+        "uso": "consumivel",
+        "cenarios": [
+          "CT-05"
+        ],
+        "registro": "garantia:6",
+        "origem": "garimpo"
+      },
+      {
+        "instancia": "I-06",
+        "estado": "garantias:garantia_imobiliaria.associada",
+        "uso": "consumivel",
+        "cenarios": [
+          "CT-07a"
+        ],
+        "registro": "garantia:4",
+        "origem": "garimpo"
+      },
+      {
+        "instancia": "I-07",
+        "estado": "garantias:garantia_imobiliaria.associada",
+        "uso": "consumivel",
+        "cenarios": [
+          "CT-07b"
+        ],
+        "registro": "garantia:9",
+        "origem": "provisionado"
+      },
+      {
+        "instancia": "I-08",
+        "estado": "garantias:garantia_imobiliaria.associada",
+        "uso": "consumivel",
+        "cenarios": [
+          "CT-08"
+        ],
+        "registro": "garantia:10",
+        "origem": "provisionado"
+      }
+    ],
+    "decisoes": [
+      {
+        "pendencia_id": "INT-01",
+        "assinatura": "interpretacao:motivo inválido = fora do domínio ou vazio?",
+        "duvida": "motivo inválido = fora do domínio ou vazio?",
+        "degrau": "duas_leituras",
+        "escolha": "gerar as duas variações",
+        "alternativas": [],
+        "justificativa": "As duas leituras são baratas e mudam só o dado de entrada; nenhuma pergunta necessária.",
+        "evidencias": [
+          "cenarios:CT-07a,CT-07b"
+        ],
+        "confianca": 0.9,
+        "reversivel": true
+      },
+      {
+        "pendencia_id": "PD-01",
+        "assinatura": "conflito:garantias:garantia_imobiliaria:motivo_bloqueio:dominio:FRA",
+        "duvida": "'motivo_bloqueio'='FRA': o código aceita (['JUD', 'ADM', 'FRA']), o normativo não (['JUD', 'ADM']). Qual comportamento o teste deve esperar?",
+        "degrau": "premissa",
+        "escolha": {
+          "verificacao": {
+            "rejeitado": true
+          },
+          "fonte": "FN-GAR-002",
+          "substituir": true,
+          "descricao": "Normativo: FRA não é motivo previsto — bloqueio deve ser rejeitado"
+        },
+        "alternativas": [
+          "seguir_normativo",
+          "seguir_codigo"
+        ],
+        "justificativa": "Sem resposta no prazo; recomendação reversível aplicada (seguir o normativo). Se o humano escolher o código, basta replanejar o CT-08.",
+        "evidencias": [
+          "FN-GAR-002"
+        ],
+        "confianca": 0.7,
+        "reversivel": true
+      }
+    ],
+    "pendencias_abertas": []
+  },
+  "metricas": {
+    "cenarios_planejados": 9,
+    "perguntas_ao_humano": 1,
+    "perguntas_por_cenario": 0.111,
+    "cenarios_concluidos_sem_intervencao": 0,
+    "massa_por_origem": {
+      "garimpo": 6,
+      "provisionado": 2
+    },
+    "taxa_garimpo": 0.75,
+    "receitas_quebradas_detectadas": 0,
+    "expectativas_por_origem": {
+      "funcional": 10
+    },
+    "expectativas_sem_fonte_funcional": 0,
+    "decisoes_por_degrau": {
+      "duas_leituras": 1,
+      "premissa": 1
+    }
+  }
+}

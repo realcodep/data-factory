@@ -1,0 +1,4 @@
+entidades:
+  credito:contrato:
+    tabela: contrato
+    openapi: {arquivo: catalogo/credito/openapi.json, esquemas: [NovoContrato]}

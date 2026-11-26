@@ -1,0 +1,51 @@
+receitas:
+  - id: garantias:incluir_garantia
+    entidade: garantias:garantia_imobiliaria
+    operacao: inclusao
+    origem: garantias:garantia_imobiliaria.inexistente
+    destino: garantias:garantia_imobiliaria.ativa_sem_vinculo
+    efeito: cria
+    custo: 1
+    passos:
+      - interface: garantias:incluir
+        campos_gerados: [matricula_imovel, valor_avaliacao, data_avaliacao, cpf_cnpj_proprietario]
+        devolve: id_garantia
+  - id: garantias:associar
+    entidade: garantias:garantia_imobiliaria
+    operacao: associacao
+    origem: garantias:garantia_imobiliaria.ativa_sem_vinculo
+    destino: garantias:garantia_imobiliaria.associada
+    requer: {contrato: credito:contrato.ativo}
+    efeito: transforma
+    custo: 1
+    passos:
+      - interface: garantias:associar
+        parametros: {id_garantia: self.id, id_contrato: contrato.id}
+        registra: {id_contrato_vigente: contrato.id}
+  - id: garantias:bloquear
+    entidade: garantias:garantia_imobiliaria
+    operacao: bloqueio
+    origem: garantias:garantia_imobiliaria.associada
+    destino: garantias:garantia_imobiliaria.bloqueada
+    efeito: transforma
+    custo: 1
+    passos:
+      - {interface: garantias:bloquear, campos_gerados: [motivo_bloqueio], parametros: {id_garantia: self.id}}
+  - id: garantias:desassociar
+    entidade: garantias:garantia_imobiliaria
+    operacao: desassociacao
+    origem: garantias:garantia_imobiliaria.associada
+    destino: garantias:garantia_imobiliaria.desassociada
+    efeito: transforma
+    custo: 1
+    passos:
+      - {interface: garantias:desassociar, parametros: {id_garantia: self.id, id_contrato: self.id_contrato_vigente}}
+  - id: garantias:excluir
+    entidade: garantias:garantia_imobiliaria
+    operacao: exclusao
+    origem: garantias:garantia_imobiliaria.ativa_sem_vinculo
+    destino: garantias:garantia_imobiliaria.excluida
+    efeito: consome
+    custo: 1
+    passos:
+      - {interface: garantias:excluir, parametros: {id_garantia: self.id}}

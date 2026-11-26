@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {"type": "command", "bash": "python3 .github/hooks/scripts/session_start.py",
+       "powershell": "python .github/hooks/scripts/session_start.py", "timeoutSec": 20}
+    ],
+    "userPromptSubmitted": [
+      {"type": "command", "bash": "python3 .github/hooks/scripts/sanitizar_prompt.py",
+       "powershell": "python .github/hooks/scripts/sanitizar_prompt.py", "timeoutSec": 10}
+    ],
+    "preToolUse": [
+      {"type": "command", "bash": "python3 .github/hooks/scripts/isolar_ferramentas.py",
+       "powershell": "python .github/hooks/scripts/isolar_ferramentas.py", "timeoutSec": 10}
+    ],
+    "postToolUse": [
+      {"type": "command", "bash": "python3 .github/hooks/scripts/auditar.py",
+       "powershell": "python .github/hooks/scripts/auditar.py", "timeoutSec": 10}
+    ],
+    "subagentStop": [
+      {"type": "command", "bash": "python3 .github/hooks/scripts/validar_proposta.py",
+       "powershell": "python .github/hooks/scripts/validar_proposta.py", "timeoutSec": 10}
+    ],
+    "sessionEnd": [
+      {"type": "command", "bash": "python3 .github/hooks/scripts/encerrar.py",
+       "powershell": "python .github/hooks/scripts/encerrar.py", "timeoutSec": 20}
+    ],
+    "errorOccurred": [
+      {"type": "command", "bash": "python3 .github/hooks/scripts/encerrar.py --erro",
+       "powershell": "python .github/hooks/scripts/encerrar.py --erro", "timeoutSec": 20}
+    ]
+  }
+}

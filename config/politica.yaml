@@ -1,0 +1,17 @@
+# Política única do Guardião — aplicada DENTRO do servidor MCP, para qualquer cliente.
+ambientes_permitidos: [DEMO, HML]
+endpoints_permitidos:
+  - {metodo: POST, padrao: "^/v1/contratos$"}
+  - {metodo: POST, padrao: "^/v1/garantias/imobiliarias$"}
+  - {metodo: POST, padrao: "^/v1/garantias/\\d+/(associacoes|bloqueios|desassociacoes)$"}
+  - {metodo: DELETE, padrao: "^/v1/garantias/\\d+$"}
+  - {metodo: GET, padrao: "^/v1/(garantias|contratos)/\\d+$"}
+telas_permitidas: ["^/telas/garantias/"]
+limites:
+  max_cenarios_por_suite: 100
+  max_registros_criados_por_plano: 40
+aprovacao_exigida:
+  remocao: true                 # qualquer operação/receita que consome registro (ex.: exclusão)
+  receita_nao_aprovada: true
+  volume_acima_limite: true
+campos_mascarar: [cpf_cnpj_proprietario, cpf_cnpj_cliente]

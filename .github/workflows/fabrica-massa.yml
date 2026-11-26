@@ -1,0 +1,45 @@
+# Pipeline de exemplo — aponta SOMENTE para o ambiente demo fictício.
+name: fabrica-massa
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 6 * * 1-5"     # canários e reabastecimento do pool em horário ocioso (UTC)
+  workflow_dispatch:
+
+jobs:
+  catalogo-e-testes:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+      - run: python -m playwright install --with-deps chromium
+      - run: python -m demo.banco --reset
+      - name: Montar e validar o catálogo
+        run: |
+          python -m massa.cli catalogo build
+          python -m massa.cli catalogo validar
+      - name: Testes (inclui a suíte de aceitação com QA Lead simulado)
+        env: {MASSA_NAVEGADOR: chromium}
+        run: python -m pytest
+
+  canarios-e-pool:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+      - run: python -m demo.banco --reset && python -m massa.cli catalogo build
+      - name: Subir a API demo
+        run: (python -m uvicorn demo.api:app --port 8765 &) && sleep 3
+      - name: Canários (falha o job se alguma receita quebrar)
+        run: python -m massa.cli canarios
+      - name: Reabastecer o pool
+        run: python -m massa.cli pool reabastecer
+      - run: python -m massa.cli metricas

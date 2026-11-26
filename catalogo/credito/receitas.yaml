@@ -1,0 +1,10 @@
+receitas:
+  - id: credito:criar_contrato_ativo
+    entidade: credito:contrato
+    operacao: inclusao
+    origem: credito:contrato.inexistente
+    destino: credito:contrato.ativo
+    efeito: cria
+    custo: 2
+    passos:
+      - {interface: credito:criar_contrato, campos_gerados: [numero, cpf_cnpj_cliente, valor], devolve: id_contrato}
